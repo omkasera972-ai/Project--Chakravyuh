@@ -1,107 +1,119 @@
- 🛡️ PROJECT CHAKRAVYUH v2.0
+<div align="center">
 
-> **Enterprise Multi-Purpose AI Security, Biometric Surveillance & Tactical Intelligence Command Platform**
+# 🛡️ PROJECT CHAKRAVYUH v2.0
+
+### **Bharat 2.0 Enterprise AI Tactical Security, Biometric Surveillance & Intelligence Command Platform**
 
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5.4.14-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.17-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Face-API](https://img.shields.io/badge/AI_Engine-ResNet34_128D-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://github.com/vladmandic/face-api)
+[![AI Engine](https://img.shields.io/badge/AI_Engine-ResNet34_128D-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://github.com/vladmandic/face-api)
 
 ---
 
-## 📌 Executive Summary
+</div>
 
-**Project Chakravyuh v2.0** is a next-generation **AI-Powered Tactical Security & Biometric Surveillance System** designed for high-security multi-domain environments. It integrates real-time computer vision, deep-learning facial recognition (ResNet-34 128-D Biometric Embeddings), automatic license plate recognition (ANPR), missing children rescue radar, and military-grade perimeter defense under a unified, reactive control center.
+## 📌 Executive Overview
+
+**Project Chakravyuh v2.0** is an **All-in-One Multi-Domain Tactical AI Command & Surveillance Gateway** engineered for smart cities, law enforcement, defense garrisons, and enterprise campuses. 
+
+It provides **sub-millisecond biometric facial recognition**, **multi-target crowd scanning**, **automatic license plate recognition (ANPR)**, **missing children sonar sweeps**, and **defense thermal RADAR**—all accessible via a unified, modern White-Theme Command Portal.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ System Architecture & Data Flow
 
 ```text
-                               ┌─────────────────────────────────────────────────┐
-                               │         CHAKRAVYUH PURPOSE SELECTOR             │
-                               │   (Multi-Domain Operational Security Gateway)   │
-                               └───────────────────────┬─────────────────────────┘
-                                                       │
-        ┌──────────────────┬───────────────────────────┼───────────────────────────┬──────────────────┐
-        ▼                  ▼                           ▼                           ▼                  ▼
- ┌──────────────┐   ┌──────────────┐           ┌──────────────┐           ┌──────────────┐   ┌──────────────┐
- │  BIOMETRIC   │   │  CRIMINAL    │           │     ANPR     │           │   MISSING    │   │   DEFENCE    │
- │ ATTENDANCE   │   │  TRACKING    │           │   VEHICLES   │           │  CHILDREN    │   │  TACTICAL    │
- └──────┬───────┘   └──────┬───────┘           └──────┬───────┘           └──────┬───────┘   └──────┬───────┘
-        │                  │                           │                           │                  │
-        └──────────────────┴───────────────────────────┼───────────────────────────┴──────────────────┘
-                                                       │
-                                        ┌──────────────┴──────────────┐
-                                        │  SHARED REACTION & DATA MESH│
-                                        │  - AppContext State Store   │
-                                        │  - Live Webcam & CCTV Engine│
-                                        │  - FastAPI AI Verification  │
-                                        │  - Instant PDF Dossier Gen  │
-                                        └─────────────────────────────┘
+                                ┌───────────────────────────────────────────────────┐
+                                │         CHAKRAVYUH PURPOSE SELECTOR               │
+                                │   (Multi-Domain Operational Security Gateway)     │
+                                └────────────────────────┬──────────────────────────┘
+                                                         │
+        ┌───────────────────┬────────────────────────────┼────────────────────────────┬───────────────────┐
+        ▼                   ▼                            ▼                            ▼                   ▼
+ ┌───────────────┐   ┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐
+ │  BIOMETRIC    │   │   CRIMINAL    │           │     ANPR      │           │    MISSING    │   │    DEFENCE    │
+ │  ATTENDANCE   │   │   TRACKING    │           │   VEHICLES    │           │   CHILDREN    │   │   TACTICAL    │
+ └───────┬───────┘   └───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘
+         │                   │                           │                           │                   │
+         └───────────────────┴───────────────────────────┼───────────────────────────┴───────────────────┘
+                                                         │
+                                          ┌──────────────┴──────────────┐
+                                          │  SHARED REACTION & DATA MESH│
+                                          │  - AppContext State Store   │
+                                          │  - Live Webcam & CCTV Engine│
+                                          │  - FastAPI AI Verification  │
+                                          │  - Instant PDF Dossier Gen  │
+                                          └─────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Key Modules & Security Domains
+## 🤖 Core AI & Computer Vision Stack
+
+| Technology | Category | Role in Project Chakravyuh |
+| :--- | :--- | :--- |
+| **OpenCV** | Computer Vision Library (C++/Python) | Frame preprocessing, contour detection & canvas overlay rendering |
+| **EasyOCR** | OCR Recognition Library (Python) | High-speed vehicle license plate character extraction (ANPR) |
+| **Face-API / ResNet-34** | Biometric AI Neural Network | Live face detection, 128-D descriptor embedding extraction & Euclidean matching |
+| **YOLOv8** | Object Detection AI Framework | Real-time crowd sweeping, person & threat object detection |
+
+---
+
+## ⚡ Key Highlights & Innovation Standard
+
+- **⚡ 250ms Real-Time AI Scanner Loop:** Deep facial descriptor comparison running every 250ms using ResNet-34 128-D Euclidean Distance vectors.
+- **👥 Multi-Face Crowd Sweep:** Detects, tracks, and bounds multiple faces in a single live webcam frame simultaneously with distinct color overlays.
+- **🔒 Zero-Flicker Match Hysteresis Hold (3000ms):** UI locks on match targets solidly without bounding-box flickering.
+- **📄 Instant PDF Intercept Dossier Generator:** One-click download of official law enforcement dossiers (`CHAKRAVYUH_CRIMINAL_INTERCEPT_DOSSIER_[ID].pdf`).
+- **🚸 Automated Missing Child Radar & Detection Reports:** Screen flash effect, audio beep alarm, voice speech synthesis, and persistent detection logs.
+- **🛡️ Sector-Based Security Controls:** Independent login gateways for School, University, Law Enforcement, Traffic Command, and Defense Garrison sectors.
+
+---
+
+## 🚀 Specialized Operational Modules
 
 ### 🎓 1. Biometric Attendance System
-- **Use Case:** Schools, Govt Colleges, Universities, and Corporate Hubs.
-- **Highlights:**
-  - Automated facial recognition turnstile check-ins eliminating proxy attendance.
-  - Sector Selector: School, College, University, Corporate Hub.
-  - Live absentee telemetry, check-in logs, and downloadable PDF attendance reports.
+- **Domains:** Schools, Govt Colleges, State Universities, Enterprise Hubs.
+- **Features:** Automated facial check-ins, proxy-proof turnstiles, real-time absentee counters, and PDF roster exports.
 
 ### 🚨 2. Criminal Tracking & Watchlist Intercept System
-- **Use Case:** High-risk suspect tracking, wanted criminal alerts & law enforcement watchlist intercepts.
-- **Highlights:**
-  - **250ms Real-Time AI Scanner Loop** using ResNet-34 128-D Euclidean Distance matching (Threshold: `0.58`).
-  - **👥 Multi-Face Crowd Sweep:** Tracks multiple faces simultaneously with dynamic color-coded bounding boxes.
-  - **🔒 Zero-Flicker Match Hysteresis (3000ms):** Prevents UI jitter during live scanning.
-  - **🛑 30-Second Debounce Protection:** Prevents duplicate notification flooding.
-  - **📄 Instant PDF Intercept Dossier:** Generates official security dossiers (`CHAKRAVYUH_CRIMINAL_INTERCEPT_DOSSIER_[ID].pdf`).
+- **Domains:** High-risk suspect search, Wanted criminal alerts, Airport & Transit intercepts.
+- **Features:** Multi-face crowd radar, 0.58 distance threshold match, 30-sec target alert debounce, and instant PDF Intercept Dossier creation.
 
 ### 🚘 3. Automatic Number Plate Recognition (ANPR)
-- **Use Case:** Traffic command, toll gates, stolen vehicle tracking & smart city challan management.
-- **Highlights:**
-  - Real-time license plate OCR scanning for vehicles up to 180 km/h.
-  - Automatic flag system for stolen vehicles, expired permits, and fake number plates.
+- **Domains:** Highway toll plazas, Smart city traffic command, Stolen vehicle cell.
+- **Features:** Optical Character Recognition (OCR) plate scanner (up to 180 km/h vehicle speed tracking), stolen vehicle flags, expired permit alerts.
 
 ### 🚸 4. Missing Children Rescue Spotlight System
-- **Use Case:** Public transit hubs, railway stations, airports, and city surveillance for child recovery.
-- **Highlights:**
-  - Dedicated child case registries (`Case MC-2026-***`).
-  - Yellow bounding box on face detection, Green bounding box on biometric match.
-  - Automated visual gradient flash, Web Audio urgency beep tone, and text-to-speech voice announcements.
-  - Auto-generated detection match reports saved locally and accessible in Reports & Logs.
+- **Domains:** Railway stations, Bus terminals, Airports, Hospital recovery desks.
+- **Features:** Case registry system (`Case MC-2026-***`), green match rectangle, audio-visual spotlight alert, and auto-generated rescue reports.
 
 ### 🛡️ 5. Defence Tactical & Perimeter Security System
-- **Use Case:** Military garrisons, armory vaults, border RADAR, and counter-drone defense.
-- **Highlights:**
-  - Armory biometric authorization clearance levels.
-  - Thermal RADAR perimeter breach detection & emergency Lockdown trigger.
+- **Domains:** Army base garrisons, Armory vaults, Border thermal RADAR, QRT mobile units.
+- **Features:** Biometric clearance verification, thermal perimeter breach radar, and base-wide Emergency Lockdown trigger.
 
 ---
 
-## 🛠️ Tech Stack & Technologies
+## 🛠️ Complete Technology Stack
 
-| Layer | Technology | Description |
+| Layer | Technology | Function |
 | :--- | :--- | :--- |
-| **Frontend UI** | React 18 + React Router v6 | High-performance reactive component framework |
-| **Build System** | Vite 5 | Instant HMR and optimized production bundling |
-| **Styling & Theme** | Vanilla CSS + TailwindCSS | Pure White Light UI, clean glassmorphism, responsive grids |
-| **AI Biometric Engine** | `@vladmandic/face-api` | SSD MobileNet V1 + ResNet-34 128-D facial descriptor matching |
-| **Backend Framework** | Python 3.10+ / FastAPI / Uvicorn | Async REST API for microservices & validation |
-| **PDF Dossiers** | `jsPDF` | Real-time client-side generation of security dossier reports |
-| **Geospatial Mapping** | `Leaflet` + `react-leaflet` | Live interactive surveillance map with camera nodes |
-| **Data Visualization** | `Recharts` | Real-time security analytics and incident breakdown charts |
-| **Icons** | `lucide-react` | Clean vector iconography |
+| **Frontend UI** | **React 18** (Hooks + Context API) | Modular, reactive UI component architecture |
+| **Build Tooling** | **Vite 5** | Lightning-fast HMR and optimized asset bundling |
+| **Styling & Theme** | **TailwindCSS 3.4** + Vanilla CSS | Pure White Light theme, modern glassmorphism, responsive cards |
+| **AI Biometric Engine**| `@vladmandic/face-api` | SSD MobileNet V1 + ResNet-34 128-D facial feature embeddings |
+| **Backend API** | **Python 3.10+ / FastAPI / Uvicorn** | Server-side validation, microservices & async endpoints |
+| **PDF Dossiers** | **jsPDF** | Client-side official PDF dossier generator |
+| **Interactive Maps** | **Leaflet + React-Leaflet** | Live geospatial surveillance camera node tracking |
+| **Analytics Charts** | **Recharts** | Real-time incident telemetry and visual breakdowns |
+| **Icons** | **Lucide React** | Modern vector icon suite |
 
 ---
 
-## ⚙️ Installation & Local Setup
+## ⚙️ Getting Started & Installation Guide
 
 ### 📋 Prerequisites
 - **Node.js** v18.0.0 or higher
@@ -110,41 +122,40 @@
 
 ---
 
-### 💻 1. Frontend Setup (React + Vite)
+### 💻 Step 1: Clone & Run Frontend (React + Vite)
 
 ```bash
 # Clone the repository
 git clone https://github.com/YOUR_USERNAME/Project-Chakravyuh.git
 
-# Navigate into prototype folder
+# Navigate to the prototype directory
 cd Project-Chakravyuh/Project-Chakravyuh-Prototype
 
-# Install npm packages
+# Install dependencies
 npm install
 
-# Run Vite dev server
+# Start Vite dev server
 npm run dev
 ```
-Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+🌐 Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
 ---
 
-### 🐍 2. Backend Setup (FastAPI Python API)
+### 🐍 Step 2: Start FastAPI Python Backend Server (Optional)
 
 ```bash
 # From Project-Chakravyuh-Prototype directory
-# Install python dependencies
 pip install -r backend/requirements.txt
 
-# Start FastAPI Uvicorn Server
+# Start backend server with uvicorn
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-API Root: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**  
-Swagger Docs: **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**
+🌐 REST API Root: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**  
+📖 Interactive API Docs: **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**
 
 ---
 
-## 📁 Repository Structure
+## 📁 Repository Directory Structure
 
 ```text
 Project-Chakravyuh/
@@ -152,54 +163,56 @@ Project-Chakravyuh/
     ├── public/
     │   └── models/                      # Pretrained Face-API AI Models (ResNet-34, SSD, TinyFace)
     ├── backend/
-    │   ├── main.py                      # FastAPI App Entry point & CORS setup
+    │   ├── main.py                      # FastAPI server entry point & CORS
     │   ├── requirements.txt             # Python backend dependencies
-    │   └── routers/                     # FastAPI route modules (auth, ai_engine, modules)
+    │   └── routers/                     # Microservice routers (auth, ai_engine, modules)
     ├── src/
-    │   ├── components/                  # Reusable UI components (Topbar, Sidebar, CctvView, StatCard)
+    │   ├── components/                  # Reusable UI (Topbar, Sidebar, CctvView, StatCard)
     │   ├── context/                     # AppContext global state store (Alerts, Watchlist, Reports)
-    │   ├── data/                        # Core data mocks (Alerts, Personnel, Watchlist, Cameras)
-    │   ├── layouts/                     # MainLayout wrapper component
+    │   ├── data/                        # Initial mock data (Alerts, Personnel, Watchlist, Cameras)
+    │   ├── layouts/                     # MainLayout layout wrapper
     │   ├── pages/
-    │   │   ├── PurposeSelector.jsx      # Multi-Domain Purpose Gateway Page
-    │   │   ├── ModuleLogin.jsx          # Domain Sector Login Page
-    │   │   ├── Dashboard.jsx            # Dynamic Command Dashboard
-    │   │   ├── CriminalTracking.jsx     # Live AI Facial Recognition & Dossier Generator
-    │   │   ├── Attendance.jsx           # Biometric Check-in Roster
-    │   │   ├── MissingChild.jsx         # Missing Children Sonar Search Spotlight
+    │   │   ├── PurposeSelector.jsx      # Purpose Gateway Landing Page
+    │   │   ├── ModuleLogin.jsx          # Sector Sign-In Gateway
+    │   │   ├── Dashboard.jsx            # Dynamic Command Center Dashboard
+    │   │   ├── CriminalTracking.jsx     # Live AI Facial Scanning & Dossier Generator
+    │   │   ├── Attendance.jsx           # Biometric Attendance Roster
+    │   │   ├── MissingChild.jsx         # Missing Children Sonar Radar
     │   │   ├── ANPR.jsx                 # Automatic License Plate Scanning
-    │   │   ├── TacticalDefense.jsx      # Military Perimeter Security Control
-    │   │   ├── Alerts.jsx               # Security Alert Log & Triage Desk
-    │   │   ├── Reports.jsx              # System PDF Audit & Match Report Center
-    │   │   ├── Cameras.jsx              # CCTV Matrix & Stream Feeds
-    │   │   └── Maps.jsx                 # Live Geospatial Surveillance Map
-    │   ├── App.jsx                      # App Routes & Protected Layout
-    │   ├── main.jsx                     # React DOM Entry point
-    │   └── index.css                    # Master CSS styling rules
-    ├── package.json                     # Node.js dependencies & scripts
+    │   │   ├── TacticalDefense.jsx      # Military Base Perimeter Security
+    │   │   ├── Alerts.jsx               # Security Incident Alert Desk
+    │   │   ├── Reports.jsx              # PDF Intercept & Audit Report Center
+    │   │   ├── Cameras.jsx              # Live CCTV Node Grid
+    │   │   └── Maps.jsx                 # Live Geospatial Map View
+    │   ├── App.jsx                      # React Router Configuration & Protected Routes
+    │   ├── main.jsx                     # Application Entry Point
+    │   └── index.css                    # Global Styles & Custom Animations
+    ├── package.json                     # Node.js dependencies
     ├── vite.config.js                   # Vite configuration
-    └── README.md                        # Documentation
+    └── README.md                        # Project Documentation
 ```
 
 ---
 
-## 🔌 API Endpoints (FastAPI Backend)
+## 🔌 API Endpoints Reference
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/` | API Health Check & System Status |
-| `POST` | `/api/auth/login` | Module Security Authentication |
-| `POST` | `/api/ai/match-face` | Server-side Facial Embedding Verification |
-| `GET` | `/api/modules/summary` | Real-time System Metrics Summary |
+| `GET` | `/` | System Health Check & Version |
+| `POST` | `/api/auth/login` | Sector Module Authentication |
+| `POST` | `/api/ai/match-face` | Facial Embedding Vector Comparison |
+| `GET` | `/api/modules/summary` | Real-time Incident & Metric Telemetry |
 
 ---
 
-## 📄 License & Attribution
+## 📜 License & Compliance
 
-This project is built for defense, law enforcement, enterprise attendance, and smart city infrastructure under **Project Chakravyuh 2.0**. All AI models belong to open-source face-api / ResNet libraries.
+Developed under **Project Chakravyuh 2.0 Infrastructure**. Built for law enforcement, government institutions, and defense operations. AI facial recognition relies on open-source ResNet-34 neural networks.
 
 ---
 
-<p align="center">
-  <b>Made with ❤️ for Bharat 2.0 AI Security & Surveillance Infrastructure</b>
-</p>
+<div align="center">
+
+**Made with ❤️ for Bharat 2.0 AI Security & Tactical Intelligence Infrastructure**
+
+</div>
