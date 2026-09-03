@@ -137,7 +137,7 @@ npm install
 # Start Vite dev server
 npm run dev
 ```
-🌐 Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+
 
 ---
 
@@ -150,8 +150,7 @@ pip install -r backend/requirements.txt
 # Start backend server with uvicorn
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-🌐 REST API Root: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**  
-📖 Interactive API Docs: **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**
+Live Link - https://6a9864ad425542223958a984--famous-lebkuchen-86e7d1.netlify.app/
 
 ---
 
