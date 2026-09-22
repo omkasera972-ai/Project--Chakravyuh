@@ -1,0 +1,10 @@
+{
+  "name": "project-chakravyuh-complete-system",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm --prefix Project-Chakravyuh-Prototype run dev",
+    "build": "npm --prefix Project-Chakravyuh-Prototype run build",
+    "preview": "npm --prefix Project-Chakravyuh-Prototype run preview"
+  }
+}

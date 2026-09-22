@@ -1,0 +1,44 @@
+[
+  {
+    "username": "admin",
+    "email": "admin@chakravyuh.gov.in",
+    "password": "admin123",
+    "name": "System Super Admin",
+    "role": "admin",
+    "is_admin": true,
+    "badge": "BADGE-SUPER-ADMIN-2026",
+    "clearance": "Level 5 - Super Admin Clearance"
+  },
+  {
+    "username": "Officer_Admin",
+    "email": "officer.admin@chakravyuh.gov.in",
+    "password": "admin123",
+    "name": "Command Officer Admin",
+    "role": "admin",
+    "is_admin": true,
+    "badge": "BADGE-CMD-ADMIN-2026",
+    "clearance": "Level 5 - Command Admin Clearance"
+  },
+  {
+    "username": "Officer_Govt_Higher_School",
+    "email": "officer_govt_higher_school@chakravyuh.gov.in",
+    "password": "admin123",
+    "name": "Govt Higher School Admin",
+    "role": "admin",
+    "is_admin": true,
+    "badge": "BADGE-ATTE-ADMIN",
+    "clearance": "Level 1 - HR & Staff Access",
+    "created_at": "2026-09-10T08:54:41.565277"
+  },
+  {
+    "username": "Officer_State_Police_HQ",
+    "email": "officer_state_police_hq@chakravyuh.gov.in",
+    "password": "admin123",
+    "name": "State Police HQ Admin",
+    "role": "admin",
+    "is_admin": true,
+    "badge": "BADGE-CRIM-ADMIN",
+    "clearance": "Level 4 - High Security Law Enforcement",
+    "created_at": "2026-09-10T08:54:50.480334"
+  }
+]

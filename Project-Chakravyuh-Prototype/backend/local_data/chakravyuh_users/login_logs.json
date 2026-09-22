@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-09-10T08:54:41.577474",
+    "username": "Officer_Govt_Higher_School",
+    "email": "officer_govt_higher_school@chakravyuh.gov.in",
+    "role": "admin",
+    "moduleId": "attendance",
+    "subCategory": "Govt Higher School",
+    "status": "SUCCESS_ADMIN_LOGIN"
+  },
+  {
+    "timestamp": "2026-09-10T08:54:50.483523",
+    "username": "Officer_State_Police_HQ",
+    "email": "officer_state_police_hq@chakravyuh.gov.in",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "subCategory": "State Police HQ",
+    "status": "SUCCESS_ADMIN_LOGIN"
+  }
+]
