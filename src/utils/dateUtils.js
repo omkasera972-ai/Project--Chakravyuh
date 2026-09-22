@@ -53,16 +53,22 @@ export const getApiBaseUrl = () => {
   return 'http://127.0.0.1:8000';
 };
 
+export const sanitizeDataUrl = (dataUrl) => {
+  if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+  return dataUrl.trim().replace(/[\r\n\t]/g, '');
+};
+
 export const compressImageDataUrl = (dataUrl, maxDim = 400, quality = 0.85) => {
   return new Promise((resolve) => {
     if (!dataUrl || typeof dataUrl !== 'string') return resolve(dataUrl);
-    if (!dataUrl.startsWith('data:image')) return resolve(dataUrl);
+    const cleanUrl = sanitizeDataUrl(dataUrl);
+    if (!cleanUrl.startsWith('data:image')) return resolve(cleanUrl);
     // Skip if already small (< 80 KB)
-    if (dataUrl.length < 80000) return resolve(dataUrl);
+    if (cleanUrl.length < 80000) return resolve(cleanUrl);
 
-    // Fail-safe timeout: resolve with original dataUrl after 1500ms max
+    // Fail-safe timeout: resolve with cleanUrl after 1500ms max
     const timer = setTimeout(() => {
-      resolve(dataUrl);
+      resolve(cleanUrl);
     }, 1500);
 
     try {
@@ -89,17 +95,18 @@ export const compressImageDataUrl = (dataUrl, maxDim = 400, quality = 0.85) => {
           ctx.drawImage(img, 0, 0, width, height);
           resolve(canvas.toDataURL('image/jpeg', quality));
         } catch (e) {
-          resolve(dataUrl);
+          resolve(cleanUrl);
         }
       };
       img.onerror = () => {
         clearTimeout(timer);
-        resolve(dataUrl);
+        resolve(cleanUrl);
       };
-      img.src = dataUrl;
+      img.src = cleanUrl;
     } catch (err) {
       clearTimeout(timer);
-      resolve(dataUrl);
+      resolve(cleanUrl);
     }
   });
 };
+

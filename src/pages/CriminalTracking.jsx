@@ -31,7 +31,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getApiBaseUrl, compressImageDataUrl } from '../utils/dateUtils';
+import { getApiBaseUrl, compressImageDataUrl, sanitizeDataUrl } from '../utils/dateUtils';
 import { StatCard } from '../components/StatCard';
 import { CctvView } from '../components/CctvView';
 import { CriminalMapSection } from '../components/CriminalMapSection';
@@ -73,13 +73,14 @@ const loadImageElement = (imageDataUrl) => {
   return new Promise((resolve) => {
     if (!imageDataUrl) return resolve(null);
     if (typeof imageDataUrl !== 'string') return resolve(imageDataUrl);
+    const cleanUrl = sanitizeDataUrl(imageDataUrl);
     const img = new Image();
-    if (imageDataUrl.startsWith('http://') || imageDataUrl.startsWith('https://')) {
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
       img.crossOrigin = 'Anonymous';
     }
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = imageDataUrl;
+    img.src = cleanUrl;
   });
 };
 
@@ -247,10 +248,50 @@ export const CriminalTracking = () => {
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
 
+  // Camera Device Selection
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [isScreenShare, setIsScreenShare] = useState(false);
+
+  // Enumerate all available video input devices on mount
+  useEffect(() => {
+    const loadCameras = async () => {
+      try {
+        // Request permission first so labels are populated
+        await navigator.mediaDevices.getUserMedia({ video: true }).then(s => s.getTracks().forEach(t => t.stop()));
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        setAvailableCameras(videoDevices);
+        if (videoDevices.length > 0 && !selectedDeviceId) {
+          setSelectedDeviceId(videoDevices[0].deviceId);
+        }
+      } catch (err) {
+        console.warn('Could not enumerate cameras:', err);
+      }
+    };
+    loadCameras();
+    // Re-enumerate when devices change (plug/unplug)
+    navigator.mediaDevices.addEventListener('devicechange', loadCameras);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', loadCameras);
+  }, []);
+
   // CCTV Camera Selector State for Scanner
-  const [selectedCctvId, setSelectedCctvId] = useState('CAM-03');
-  const [selectedCctvCode, setSelectedCctvCode] = useState('Cam 03 - Highway');
-  const [selectedCctvLocation, setSelectedCctvLocation] = useState('Highway Expressway');
+  const [selectedCctvId, setSelectedCctvId] = useState('');
+  const [selectedCctvCode, setSelectedCctvCode] = useState('');
+  const [selectedCctvLocation, setSelectedCctvLocation] = useState('');
+  // Full camera object from DB (carries actual lat/lng for email dispatch)
+  const [selectedCctvData, setSelectedCctvData] = useState(null);
+
+  // Initialize selectedCctvData when cameras first load
+  useEffect(() => {
+    if (cameras && cameras.length > 0 && !selectedCctvData) {
+      const first = cameras[0];
+      setSelectedCctvId(first.id || first.camera_id || '');
+      setSelectedCctvCode(first.camera_id || first.camera_name || first.id || '');
+      setSelectedCctvLocation(first.location || first.address || first.camera_name || '');
+      setSelectedCctvData(first);
+    }
+  }, [cameras]);
 
   useEffect(() => {
     if (watchlist.length > 0) {
@@ -322,13 +363,39 @@ export const CriminalTracking = () => {
   // -------------------------------------------------------------
   // CAMERA HELPERS FOR MAIN SCANNER
   // -------------------------------------------------------------
-  const startMainCamera = async () => {
+  const startMainCamera = async (deviceId = null, screenShare = false) => {
     setCameraError(null);
     setScanResult(null);
+    // Stop any existing stream first
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 }, facingMode: 'user' }
-      });
+      let stream;
+      if (screenShare) {
+        // Screen / Window / Tab capture
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+          audio: false
+        });
+        setIsScreenShare(true);
+        // When user stops screen share via browser UI, turn off camera
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+          setIsScreenShare(false);
+          setIsCameraActive(false);
+          mediaStreamRef.current = null;
+          if (videoRef.current) videoRef.current.srcObject = null;
+        });
+      } else {
+        // Use selected device if available, else browser default
+        const useDeviceId = deviceId || selectedDeviceId;
+        const videoConstraints = useDeviceId
+          ? { deviceId: { exact: useDeviceId }, width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 } }
+          : { width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 } };
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+        setIsScreenShare(false);
+      }
       mediaStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -336,8 +403,15 @@ export const CriminalTracking = () => {
       setIsCameraActive(true);
     } catch (err) {
       console.error("Camera access error:", err);
-      setCameraError("Could not access live webcam. Check browser permissions.");
+      if (err.name === 'NotAllowedError') {
+        setCameraError('Permission denied. Please allow camera/screen access in browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        setCameraError('No camera found. Please connect a camera device.');
+      } else {
+        setCameraError('Could not start camera: ' + err.message);
+      }
       setIsCameraActive(false);
+      setIsScreenShare(false);
     }
   };
 
@@ -386,7 +460,7 @@ export const CriminalTracking = () => {
 
   useEffect(() => {
     if (scanTab === 'camera') {
-      startMainCamera();
+      startMainCamera(selectedDeviceId, false);
     } else {
       stopMainCamera();
     }
@@ -815,10 +889,11 @@ export const CriminalTracking = () => {
                   crime_details: primaryMatch.target.details || primaryMatch.target.crimeType || 'Under Active Watchlist Surveillance',
                   ipc_charges: primaryMatch.target.charges || primaryMatch.target.ipcCharges || 'IPC 302 / 395',
                   age: primaryMatch.target.age || '32',
-                  cam_id: scanTab === 'cctv' ? (selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
-                  location: scanTab === 'cctv' ? selectedCctvLocation : 'Sandhalpur, Nemawar Highway, MP, India',
-                  lat: userLocation?.lat || 22.504429,
-                  lng: userLocation?.lng || 76.979752,
+                  confidence: `${((1 - parseFloat(primaryMatch.distance || 0.4)) * 100).toFixed(1)}%`,
+                  cam_id: scanTab === 'cctv' ? (selectedCctvData?.camera_id || selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
+                  location: scanTab === 'cctv' ? (selectedCctvData?.location || selectedCctvData?.address || selectedCctvLocation || 'CCTV Location') : 'Live Webcam',
+                  lat: scanTab === 'cctv' ? (selectedCctvData?.lat ?? userLocation?.lat ?? 22.504429) : (userLocation?.lat ?? 22.504429),
+                  lng: scanTab === 'cctv' ? (selectedCctvData?.lng ?? userLocation?.lng ?? 76.979752) : (userLocation?.lng ?? 76.979752),
                   force: true
                 })
               });
@@ -854,10 +929,10 @@ export const CriminalTracking = () => {
               age: primaryMatch.target.age || '32',
               photoUrl: suspectPhoto,
               confidence: `${((1 - parseFloat(primaryMatch.distance || 0.4)) * 100).toFixed(1)}%`,
-              cameraNode: scanTab === 'cctv' ? (selectedCctvId || 'CAM-01') : 'CAM-01 (Live Webcam)',
+              cameraNode: scanTab === 'cctv' ? (selectedCctvData?.camera_id || selectedCctvId || 'CAM-01') : 'CAM-01 (Live Webcam)',
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              lat: userLocation?.lat || 22.7240,
-              lng: userLocation?.lng || 75.8650,
+              lat: scanTab === 'cctv' ? (selectedCctvData?.lat ?? userLocation?.lat ?? 22.7240) : (userLocation?.lat ?? 22.7240),
+              lng: scanTab === 'cctv' ? (selectedCctvData?.lng ?? userLocation?.lng ?? 75.8650) : (userLocation?.lng ?? 75.8650),
               target: primaryMatch.target
             });
           }
@@ -874,11 +949,11 @@ export const CriminalTracking = () => {
               age: primaryMatch.target?.age || '32',
               ipc_charges: primaryMatch.target?.charges || primaryMatch.target?.ipcCharges || 'IPC 302 / 395',
               photo_url: primaryMatch.target?.photoUrl || primaryMatch.target?.photo || '',
-              cameraNode: scanTab === 'cctv' ? (selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
+              cameraNode: scanTab === 'cctv' ? (selectedCctvData?.camera_id || selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
               confidence: `${((1 - parseFloat(primaryMatch.distance || 0.4)) * 100).toFixed(1)}%`,
               incidentDateTime: primaryMatch.target?.incidentDateTime || new Date().toLocaleString(),
-              lat: userLocation?.lat || 22.504429,
-              lng: userLocation?.lng || 76.979752
+              lat: scanTab === 'cctv' ? (selectedCctvData?.lat ?? userLocation?.lat ?? 22.504429) : (userLocation?.lat ?? 22.504429),
+              lng: scanTab === 'cctv' ? (selectedCctvData?.lng ?? userLocation?.lng ?? 76.979752) : (userLocation?.lng ?? 76.979752)
             })
           }).then(r => r.json()).then(res => {
             showToast(
@@ -1097,7 +1172,7 @@ export const CriminalTracking = () => {
 
           return (
             <div
-              key={idx}
+              key={face.target?.id ? `face-box-${face.target.id}-${idx}` : `face-box-${idx}`}
               style={{
                 left: `${leftPercent}%`,
                 top: `${topPercent}%`,
@@ -1294,9 +1369,9 @@ export const CriminalTracking = () => {
               <option value="AUTO_DETECT">
                 🔍 AI Face Recognition — ResNet-34 Face Distance Matcher
               </option>
-              {watchlist.map(t => (
-                <option key={t.id} value={t.id}>
-                  👤 Match Target: {t.name} ({t.id}) {t.isUserAdded ? '★ My Uploaded Profile' : ''}
+              {watchlist.map((t, idx) => (
+                <option key={t.id || t._id || `watchlist-opt-${idx}`} value={t.id || t._id || idx}>
+                  👤 Match Target: {t.name} ({t.id || t._id}) {t.isUserAdded ? '★ My Uploaded Profile' : ''}
                 </option>
               ))}
               <option value="CLEAN_CITIZEN">🟢 Clean Citizen (Force No Watchlist Match)</option>
@@ -1308,8 +1383,52 @@ export const CriminalTracking = () => {
           {/* Left Column: Input Selection (Webcam / CCTV / Upload / Presets) */}
           <div className="lg:col-span-5 space-y-3">
             {scanTab === 'camera' ? (
-              /* Live Webcam Camera Mode */
+              /* Live Webcam / Screen Share Camera Mode */
               <div className="space-y-3">
+
+                {/* ── Camera Source Selector ── */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Camera Dropdown */}
+                  <div className="flex-1 flex items-center gap-2 bg-gray-900/80 dark:bg-[#161922] border border-gray-700 dark:border-gray-800 rounded-xl px-3 py-1.5">
+                    <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <select
+                      value={selectedDeviceId}
+                      onChange={async (e) => {
+                        const id = e.target.value;
+                        setSelectedDeviceId(id);
+                        if (isCameraActive && !isScreenShare) {
+                          await startMainCamera(id, false);
+                        }
+                      }}
+                      className="flex-1 bg-transparent text-white text-[11px] font-semibold focus:outline-none truncate"
+                    >
+                      {availableCameras.length === 0 && (
+                        <option value="">No cameras detected</option>
+                      )}
+                      {availableCameras.map((cam, idx) => (
+                        <option key={cam.deviceId} value={cam.deviceId}>
+                          {cam.label || `Camera ${idx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Screen Share Button */}
+                  <button
+                    onClick={() => startMainCamera(null, true)}
+                    title="Share your screen, window, or tab for criminal detection"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
+                      isScreenShare
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/30'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-blue-700 hover:text-white hover:border-blue-600'
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>{isScreenShare ? '🖥️ Sharing Screen' : '🖥️ Share Screen'}</span>
+                  </button>
+                </div>
+
+                {/* ── Live Video Feed ── */}
                 <div className="relative w-full aspect-video sm:aspect-[4/3] rounded-2xl overflow-hidden bg-gray-950 border-2 border-gray-900 shadow-md flex items-center justify-center">
                   <video
                     ref={videoRef}
@@ -1318,6 +1437,24 @@ export const CriminalTracking = () => {
                     muted
                     className={`w-full h-full object-cover ${isCameraActive ? 'block' : 'hidden'}`}
                   />
+
+                  {/* Screen Share indicator badge */}
+                  {isCameraActive && isScreenShare && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-600/90 text-white text-[10px] font-bold border border-blue-400/40 shadow z-10">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      SCREEN SHARE
+                    </div>
+                  )}
+
+                  {/* Active camera badge */}
+                  {isCameraActive && !isScreenShare && availableCameras.length > 0 && (
+                    <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-black/70 text-white text-[10px] font-semibold border border-white/10 z-10 max-w-[60%] truncate">
+                      <Camera className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">
+                        {availableCameras.find(c => c.deviceId === selectedDeviceId)?.label || 'Camera'}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Multi-Face Bounding Box Overlay */}
                   {scanResult && scanResult.facesEvaluated && renderFaceOverlayBoxes(scanResult.facesEvaluated)}
@@ -1350,7 +1487,7 @@ export const CriminalTracking = () => {
                         {cameraError || "Camera is turned off"}
                       </p>
                       <button
-                        onClick={startMainCamera}
+                        onClick={() => startMainCamera(selectedDeviceId, false)}
                         className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors"
                       >
                         Start Live Camera
@@ -1387,11 +1524,11 @@ export const CriminalTracking = () => {
                   ) : (
                     <>
                       <button
-                        onClick={startMainCamera}
+                        onClick={() => startMainCamera(selectedDeviceId, false)}
                         className="py-2.5 px-3 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-950 font-bold text-xs transition-colors flex items-center justify-center space-x-1.5"
                       >
                         <Video className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
-                        <span>Restart Webcam</span>
+                        <span>Restart Camera</span>
                       </button>
                       <button
                         onClick={() => scanFileInputRef.current?.click()}
@@ -1429,16 +1566,17 @@ export const CriminalTracking = () => {
                     value={selectedCctvId}
                     onChange={(e) => {
                       setSelectedCctvId(e.target.value);
-                      const foundCam = cameras.find(c => c.id === e.target.value);
+                      const foundCam = cameras.find(c => c.id === e.target.value || c.camera_id === e.target.value);
                       if (foundCam) {
-                        setSelectedCctvCode(foundCam.code);
-                        setSelectedCctvLocation(foundCam.name);
+                        setSelectedCctvCode(foundCam.camera_id || foundCam.camera_name || e.target.value);
+                        setSelectedCctvLocation(foundCam.location || foundCam.address || foundCam.camera_name || '');
+                        setSelectedCctvData(foundCam);
                       }
                     }}
                     className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a1d24] border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white font-bold focus:outline-none focus:border-gray-900 dark:focus:border-white"
                   >
-                    {cameras.map(cam => (
-                      <option key={cam.id} value={cam.id}>
+                    {cameras.map((cam, idx) => (
+                      <option key={cam.id || `cam-opt-${idx}`} value={cam.id || idx}>
                         📹 {cam.code} ({cam.zone})
                       </option>
                     ))}
@@ -1812,10 +1950,10 @@ export const CriminalTracking = () => {
                               crime_details: scanResult.target.details || scanResult.target.crimeType || 'Under Active Watchlist Surveillance',
                               ipc_charges: scanResult.target.charges || scanResult.target.ipcCharges || 'IPC 302 / 395',
                               age: scanResult.target.age || '32',
-                              cam_id: scanTab === 'cctv' ? (selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
-                              location: scanTab === 'cctv' ? selectedCctvLocation : 'Sandhalpur, Nemawar Highway, MP, India',
-                              lat: userLocation?.lat || 22.504429,
-                              lng: userLocation?.lng || 76.979752,
+                              cam_id: scanTab === 'cctv' ? (selectedCctvData?.camera_id || selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
+                              location: scanTab === 'cctv' ? (selectedCctvData?.location || selectedCctvData?.address || selectedCctvLocation || 'CCTV Location') : 'Live Webcam',
+                              lat: scanTab === 'cctv' ? (selectedCctvData?.lat ?? userLocation?.lat ?? 22.504429) : (userLocation?.lat ?? 22.504429),
+                              lng: scanTab === 'cctv' ? (selectedCctvData?.lng ?? userLocation?.lng ?? 76.979752) : (userLocation?.lng ?? 76.979752),
                               force: true
                             })
                           });
@@ -1997,9 +2135,9 @@ export const CriminalTracking = () => {
                         target.riskLevel?.toLowerCase().includes(q)
                       );
                     })
-                    .map((target) => (
+                    .map((target, idx) => (
                     <tr
-                      key={target.id}
+                      key={target.id || target._id || `target-row-${idx}`}
                       onClick={() => setSelectedProfile(target)}
                       className="hover:bg-red-50/40 dark:hover:bg-red-950/20 cursor-pointer transition-colors"
                     >
@@ -2444,7 +2582,7 @@ export const CriminalTracking = () => {
                         crime_details: screenDetectionAlert.crimeDetails,
                         ipc_charges: screenDetectionAlert.ipcCharges,
                         age: screenDetectionAlert.age,
-                        cam_id: scanTab === 'cctv' ? (selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
+                        cam_id: scanTab === 'cctv' ? (selectedCctvData?.camera_id || selectedCctvId || 'WEB-Cam01') : 'WEB-Cam01',
                         location: screenDetectionAlert.cameraNode,
                         lat: screenDetectionAlert.lat,
                         lng: screenDetectionAlert.lng,

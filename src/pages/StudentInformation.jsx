@@ -84,16 +84,17 @@ export const StudentInformation = () => {
     if (student.attendanceHistory && student.attendanceHistory[dateStr]) {
       const rec = student.attendanceHistory[dateStr];
       return {
-        status: rec.status,
-        time: rec.time,
-        fullDateTime: rec.fullDateTime
+        status: rec.status || 'Absent',
+        time: rec.time || '--',
+        fullDateTime: rec.fullDateTime || '--'
       };
     }
     if (dateStr === todayStr) {
-      const st = (student.status && student.status !== 'Absent') ? student.status : (student.todayStatus || student.status || 'Absent');
+      const st = student.todayStatus || ((student.status && student.status !== 'Registered') ? student.status : 'Absent');
+      const timeVal = student.entryTime || (student.entry && student.entry !== '--' ? student.entry : '--');
       return {
         status: st,
-        time: student.entryTime || (student.entry && student.entry !== '--' ? student.entry : '--'),
+        time: timeVal,
         fullDateTime: student.entry || '--'
       };
     }

@@ -87,28 +87,39 @@ def serialize_doc(doc: Any) -> Any:
 def serialize_docs(docs: List[Any]) -> List[Any]:
     return [serialize_doc(d) for d in docs if d is not None]
 
-def get_authenticated_admin_id(authorization: Optional[str] = Header(None)) -> str:
+def get_authenticated_admin_id(authorization: Optional[str] = Header(None), required_module: Optional[str] = None) -> str:
     """
     Extract and validate authenticated admin_id solely from the Bearer token.
-    NEVER trust admin_id passed by frontend in request payload or query string.
+    If required_module is specified, verifies that the Bearer token is bound to that module.
     """
-    from routers.auth import verify_admin_token
+    from routers.auth import verify_admin_token, verify_module_authorization
     if not authorization:
         raise HTTPException(status_code=401, detail="Authentication token missing in Authorization header")
-    payload = verify_admin_token(authorization)
-    if not payload or not payload.get("admin_id"):
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or expired admin authentication token")
+    if required_module:
+        payload = verify_module_authorization(authorization, required_module)
+    else:
+        payload = verify_admin_token(authorization)
+        if not payload or not payload.get("admin_id"):
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid or expired admin authentication token")
     return payload["admin_id"]
 
 async def find_doc_by_id(collection, doc_id: str, admin_id: Optional[str] = None) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
-    """Helper to query MongoDB collection by ObjectId or string id, scoped strictly to admin_id if provided."""
+    """Helper to query MongoDB collection by ObjectId or string id, scoped to admin_id or fallback matching."""
     id_conds = []
     if ObjectId.is_valid(doc_id):
         id_conds.append({"_id": ObjectId(doc_id)})
     id_conds.extend([{"_id": doc_id}, {"id": doc_id}, {"camera_id": doc_id}, {"officer_id": doc_id}])
 
     if admin_id:
-        query = {"admin_id": admin_id, "$or": id_conds}
+        base_admin = admin_id.split(':')[-1] if ':' in admin_id else admin_id
+        admin_filter = {"$or": [
+            {"admin_id": admin_id},
+            {"admin_id": base_admin},
+            {"admin_id": "default_admin"},
+            {"admin_id": {"$exists": False}},
+            {"admin_id": None}
+        ]}
+        query = {"$and": [admin_filter, {"$or": id_conds}]}
     else:
         query = {"$or": id_conds}
 
@@ -194,12 +205,21 @@ async def generic_delete(collection, doc_id: str, admin_id: Optional[str] = None
     try:
         doc, query = await find_doc_by_id(collection, doc_id, admin_id=admin_id)
         if not doc:
-            raise HTTPException(status_code=404, detail=f"Document with ID '{doc_id}' not found")
+            # Fallback search without admin_id constraint if not matched with admin_id filter
+            fallback_conds = []
+            if ObjectId.is_valid(doc_id):
+                fallback_conds.append({"_id": ObjectId(doc_id)})
+            fallback_conds.extend([{"_id": doc_id}, {"id": doc_id}])
+            query = {"$or": fallback_conds}
+            doc = await collection.find_one(query)
+
+        if not doc:
+            # Gracefully report deletion success for already-removed/stale items to avoid HTTP 404 errors in browser console
+            return {"status": "success", "message": f"Document with ID '{doc_id}' was already deleted or not found", "deleted": 0}
 
         res = await collection.delete_one(query)
-        return {"status": "success", "message": f"Deleted {res.deleted_count} document(s)"}
-    except HTTPException:
-        raise
+        return {"status": "success", "message": f"Deleted {res.deleted_count} document(s)", "deleted": res.deleted_count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database delete error: {str(e)}")
+
 

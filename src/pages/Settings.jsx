@@ -116,7 +116,9 @@ export const Settings = () => {
     showToast('Preferences Saved', 'Command console settings updated successfully in MongoDB.', 'success');
   };
 
-  const tabs = [
+  const isAttendanceModule = (activeModule === 'attendance') || (window.location.pathname.includes('attendance'));
+
+  const allTabs = [
     { id: 'profile', label: 'Operator Profile', icon: User, desc: 'Personal details & command credentials' },
     { id: 'dispatch_numbers', label: 'Officers Information', icon: UserCheck, desc: 'Duty officer details & police station contact directory' },
     { id: 'history', label: 'Criminal Audit History', icon: Clock, desc: 'Permanent log archive of criminal detections & record deletions' },
@@ -125,6 +127,10 @@ export const Settings = () => {
     { id: 'system', label: 'System Preferences', icon: Monitor, desc: 'Console theme & telemetry retention' },
     { id: 'camera', label: 'Camera Stream Settings', icon: Video, desc: '4K AI inferencing & 60 FPS codec' },
   ];
+
+  const tabs = isAttendanceModule 
+    ? allTabs.filter(t => t.id !== 'dispatch_numbers' && t.id !== 'history') 
+    : allTabs;
 
   // Filter history logs by search term & type (EXCLUDING Attendance logs which belong ONLY to Attendance module)
   const filteredHistory = (historyLogs || [])
@@ -195,7 +201,9 @@ export const Settings = () => {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Configure command console parameters, operator access credentials, emergency broadcast contacts, and criminal audit logs.
+            {isAttendanceModule
+              ? 'Configure command console parameters, operator access credentials, and system preferences.'
+              : 'Configure command console parameters, operator access credentials, emergency broadcast contacts, and criminal audit logs.'}
           </p>
         </div>
 
@@ -306,7 +314,7 @@ export const Settings = () => {
             )}
 
             {/* Officers Information Tab (Full Width Page Layout) */}
-            {activeTab === 'dispatch_numbers' && (
+            {activeTab === 'dispatch_numbers' && !isAttendanceModule && (
               <div className="space-y-8 w-full">
                 {/* Hero Header Banner */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-7 sm:p-8 rounded-3xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30">
@@ -628,7 +636,7 @@ export const Settings = () => {
             )}
 
             {/* Criminal System Audit History Tab (Excludes Private Attendance Logs) */}
-            {activeTab === 'history' && (
+            {activeTab === 'history' && !isAttendanceModule && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
                   <div>

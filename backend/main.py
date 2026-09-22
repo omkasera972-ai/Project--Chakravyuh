@@ -42,11 +42,17 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# Global Exception Handlers to guarantee JSON responses on all Vercel Serverless Function errors
+# Global Exception Handlers to guarantee JSON responses and CORS headers on all HTTP errors
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(
         status_code=exc.status_code,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "*"
+        },
         content={
             "status": "error",
             "detail": exc.detail,
@@ -58,6 +64,12 @@ async def http_exception_handler(request, exc):
 async def validation_exception_handler(request, exc):
     return JSONResponse(
         status_code=422,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "*"
+        },
         content={
             "status": "error",
             "detail": exc.errors(),
@@ -70,6 +82,12 @@ async def global_exception_handler(request, exc):
     logger.error(f"[SERVERLESS ERROR] {request.method} {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "*"
+        },
         content={
             "status": "error",
             "detail": str(exc),

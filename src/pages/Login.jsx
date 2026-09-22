@@ -35,7 +35,11 @@ export const Login = () => {
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
+          {/* Decoy hidden fields to trap browser password manager autofill */}
+          <input type="text" name="fake_user_id" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+          <input type="password" name="fake_pass_key" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+
           <div>
             <label className="block text-xs font-semibold text-neutral-300 mb-1.5 uppercase tracking-wider">
               Username / Operator ID
@@ -46,9 +50,9 @@ export const Login = () => {
               </div>
               <input
                 type="text"
-                name="username"
-                id="username"
-                autoComplete="username"
+                name="chk_user_login_field"
+                id="chk_user_login_field"
+                autoComplete="one-time-code"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="admin"
@@ -67,9 +71,9 @@ export const Login = () => {
               </div>
               <input
                 type="password"
-                name="password"
-                id="password"
-                autoComplete="current-password"
+                name="chk_user_pass_field"
+                id="chk_user_pass_field"
+                autoComplete="one-time-code"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

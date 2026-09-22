@@ -688,6 +688,65 @@ export const Reports = () => {
     }
   };
 
+  const downloadMissingChildPDF = (report) => {
+    try {
+      showToast('Generating PDF', `Building Rescue Report for ${report.childName}...`, 'info');
+      const doc = new jsPDF();
+
+      // Header
+      doc.setFillColor(22, 163, 74); // Green header
+      doc.rect(0, 0, 210, 35, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('PROJECT CHAKRAVYUH - MISSING CHILD RESCUE REPORT', 14, 18);
+      doc.setFontSize(11);
+      doc.setTextColor(220, 252, 231);
+      doc.text('AUTONOMOUS AI FACIAL RECOGNITION MATCH', 14, 27);
+
+      // Child Info
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.text(`Child Name: ${report.childName}`, 14, 50);
+      doc.setFontSize(11);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Child ID: ${report.childId}`, 14, 58);
+      doc.text(`Match Confidence: ${report.confidence}%`, 14, 66);
+      doc.text(`Detection Location: ${report.location}`, 14, 74);
+      doc.text(`Detection Time: ${report.timestamp}`, 14, 82);
+      
+      doc.setTextColor(22, 163, 74);
+      doc.setFont('helvetica', 'bold');
+      doc.text('STATUS: LOCATED / HIGH PRIORITY RESCUE', 14, 94);
+
+      // Photo
+      const photoData = report.photoUrl || report.photo || report.image_url || report.avatar;
+      if (photoData && typeof photoData === 'string' && photoData.startsWith('data:image')) {
+        doc.setTextColor(15, 23, 42);
+        doc.text('Child Photograph / Detection Frame:', 14, 110);
+        try {
+          // Extract format from data URI (e.g. data:image/jpeg;base64,...)
+          const format = photoData.substring("data:image/".length, photoData.indexOf(";"));
+          const validFormat = (format === 'png' || format === 'webp') ? format.toUpperCase() : 'JPEG';
+          doc.addImage(photoData, validFormat, 14, 115, 60, 60);
+        } catch (e) {
+          console.warn('Could not embed photo in PDF:', e);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(239, 68, 68);
+          doc.text('(Image could not be embedded - format unsupported)', 14, 120);
+        }
+      }
+
+      doc.save(`Rescue_Report_${report.childName.replace(/ /g, '_')}_${report.childId}.pdf`);
+      showToast('Download Complete', 'Rescue report PDF downloaded successfully.', 'success');
+    } catch (err) {
+      console.error('PDF error:', err);
+      showToast('PDF Error', err.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6 select-none pb-6">
       {/* Header Bar */}
@@ -1003,7 +1062,7 @@ export const Reports = () => {
                       Export CSV
                     </button>
                     <button
-                      onClick={() => showToast('Download', `Downloading rescue report for ${report.childName}...`, 'success')}
+                      onClick={() => downloadMissingChildPDF(report)}
                       className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold transition-colors flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer text-xs"
                     >
                       <Download className="w-3.5 h-3.5" />

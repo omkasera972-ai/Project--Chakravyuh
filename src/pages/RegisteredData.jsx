@@ -667,7 +667,7 @@ export const RegisteredData = () => {
                               : isMissingChild 
                                 ? `Guardian: ${item.guardianName || 'Parent / Guardian'} (${item.age || 7} Yrs • ${item.gender || 'Male'})`
                                 : isAttendance 
-                                  ? `Added: ${item.entry || 'Registered'}` 
+                                  ? `Role: ${item.role || 'Student'} • ID: ${item.id || item._id}` 
                                   : `Age: ${item.age || 32} Yrs • ${item.lastSeen || 'Node CAM-01'}`
                             }
                           </span>
@@ -709,7 +709,7 @@ export const RegisteredData = () => {
                               {item.role || item.designation || 'Student'}
                             </span>
                             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold font-mono">
-                              ● {item.status || 'Registered'}
+                              ● REGISTERED DATA
                             </span>
                           </div>
                         ) : (

@@ -145,8 +145,8 @@ export const Topbar = () => {
               </div>
               <div className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
                 {moduleActiveAlerts.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-gray-400">
-                    No active alerts for {currentModule.replace('-', ' ')}
+                  <div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    {currentModule === 'attendance' ? 'No recent attendance activity' : `No active alerts for ${currentModule.replace('-', ' ')}`}
                   </div>
                 ) : (
                   moduleActiveAlerts.slice(0, 5).map(alert => (
@@ -159,11 +159,15 @@ export const Topbar = () => {
                       className="p-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/60 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-semibold text-gray-900 dark:text-white">{alert.title}</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">{alert.timeAgo}</span>
+                        <span className="font-bold text-gray-900 dark:text-white">
+                          {currentModule === 'attendance' && !alert.title?.startsWith('ATTENDANCE RECORDED:')
+                            ? `ATTENDANCE RECORDED: ${alert.title?.replace(/^ATTENDANCE MARKED:\s*/i, '') || 'Member'}`
+                            : alert.title}
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">{alert.timeAgo}</span>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">{alert.description}</p>
-                      <span className="inline-block mt-1 text-xs text-gray-500 dark:text-gray-400 font-medium">{alert.location}</span>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 font-medium">{alert.description}</p>
+                      <span className="inline-block mt-1 text-xs text-emerald-600 dark:text-emerald-400 font-bold">{alert.location}</span>
                     </div>
                   ))
                 )}
@@ -176,20 +180,20 @@ export const Topbar = () => {
         <div className="relative">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center space-x-2.5 cursor-pointer group pl-2 py-1 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center space-x-2.5 cursor-pointer group px-2.5 py-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-gray-800 border border-indigo-200 dark:border-gray-700 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold">
-              <UserIcon className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold">
+              <UserIcon className="w-4.5 h-4.5" />
             </div>
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                {user?.name || user?.username || 'Admin'}
+            <div className="flex items-center space-x-1.5 text-left">
+              <span className="text-[16px] font-bold text-slate-900 dark:text-white leading-tight">
+                {user?.name || user?.username || 'Roman'}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium leading-tight">
-                {user?.role || 'Super Admin'}
+              <span className="text-[13px] text-slate-500 dark:text-slate-400 font-semibold">
+                • {user?.role || 'Admin'}
               </span>
             </div>
-            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400 ml-1 group-hover:text-gray-800 dark:group-hover:text-white transition-colors" />
+            <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 ml-0.5 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
           </button>
 
           {showProfileMenu && (

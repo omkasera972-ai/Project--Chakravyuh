@@ -74,9 +74,17 @@ const getCachedData = (key, fallback = []) => {
   try {
     const savedUser = localStorage.getItem('sda_user');
     const token = localStorage.getItem('sda_token');
+    const activeModule = (localStorage.getItem('sda_active_module') || 'attendance').toLowerCase();
     if (!token || !savedUser || savedUser === 'undefined' || savedUser === 'null') {
       return fallback;
     }
+
+    // Verify key corresponds strictly to active authorized module
+    if (key === 'sda_cache_personnel' && !['attendance', 'students'].includes(activeModule)) return fallback;
+    if ((key === 'sda_cache_watchlist' || key === 'sda_cache_officers') && !['criminal-tracking', 'criminal'].includes(activeModule)) return fallback;
+    if (key === 'sda_cache_vehicles' && !['anpr', 'anpr-system'].includes(activeModule)) return fallback;
+    if (key === 'sda_cache_missing_children' && !['missing-child', 'missing-children', 'missing'].includes(activeModule)) return fallback;
+    if (key === 'sda_cache_inventory' && !['defence', 'defense'].includes(activeModule)) return fallback;
 
     const saved = localStorage.getItem(key);
     if (saved && saved !== 'undefined' && saved !== 'null') {
@@ -193,8 +201,8 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   // --- OFFICER INFORMATION MONGO DB CRUD API SYNC (Criminal_traking -> officer_information) ---
-  const [officers, setOfficers] = useState([]);
-  const [dispatchPhoneNumbers, setDispatchPhoneNumbers] = useState([]);
+  const [officers, setOfficers] = useState(() => getCachedData('sda_cache_officers', []));
+  const [dispatchPhoneNumbers, setDispatchPhoneNumbers] = useState(() => getCachedData('sda_cache_officers', []));
   const isFetchingOfficersRef = React.useRef(false);
   const authFetch = async (url, options = {}) => {
     const token = localStorage.getItem('sda_token');
@@ -202,7 +210,12 @@ export const AppProvider = ({ children }) => {
       ...options.headers,
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
-    const targetUrl = url.replace(/^http:\/\/(127\.0\.0\.1|localhost):8000/, getApiBaseUrl());
+    let targetUrl = url;
+    if (url && url.startsWith('/')) {
+      targetUrl = `${getApiBaseUrl()}${url}`;
+    } else if (url) {
+      targetUrl = url.replace(/^http:\/\/(127\.0\.0\.1|localhost):8000/, getApiBaseUrl());
+    }
     const res = await fetch(targetUrl, { ...options, headers });
     if (res.status === 401) {
       console.warn('[authFetch] 401 Unauthorized encountered, purging stale session token');
@@ -214,6 +227,14 @@ export const AppProvider = ({ children }) => {
   };
 
 
+
+  const getOfficerApiBase = (modOverride) => {
+    const mod = (modOverride || activeModule || localStorage.getItem('sda_active_module') || 'criminal-tracking').toLowerCase();
+    if (mod === 'missing-child' || mod === 'missing_child' || mod === 'missing-children') return { url: '/api/missing-children/authority-information', isAuth: true };
+    if (mod === 'criminal-tracking' || mod === 'criminal') return { url: '/api/criminal/officer_information', isAuth: true };
+    return { url: null, isAuth: false };
+  };
+
   const fetchOfficers = async () => {
     const token = localStorage.getItem('sda_token');
     if (!token) {
@@ -221,10 +242,17 @@ export const AppProvider = ({ children }) => {
       setDispatchPhoneNumbers([]);
       return;
     }
+    // Only criminal-tracking module has permission to access /api/criminal/officer_information
+    // All other modules (missing-child, anpr, etc.) will get 403 — skip the call entirely
+    const officerApi = getOfficerApiBase();
+    if (!officerApi.isAuth || !officerApi.url) {
+      isFetchingOfficersRef.current = false;
+      return;
+    }
     if (isFetchingOfficersRef.current) return;
     isFetchingOfficersRef.current = true;
     try {
-      const res = await authFetch('http://127.0.0.1:8000/api/criminal/officer_information');
+      const res = await authFetch(officerApi.url);
       if (res.ok) {
         const result = await res.json();
         if (result && result.status === 'success' && Array.isArray(result.data)) {
@@ -266,6 +294,7 @@ export const AppProvider = ({ children }) => {
           });
           setOfficers(list);
           setDispatchPhoneNumbers(list);
+          setCachedData('sda_cache_officers', list);
         }
       }
     } catch (e) {
@@ -275,12 +304,10 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    fetchOfficers();
-  }, []);
-
   const addOfficer = async (offData) => {
     if (!offData) return;
+    const officerApi = getOfficerApiBase();
+    if (!officerApi.url) return;
     const latVal = offData.lat !== undefined && offData.lat !== null ? parseFloat(offData.lat) : (offData.latitude !== undefined && offData.latitude !== null ? parseFloat(offData.latitude) : null);
     const lngVal = offData.lng !== undefined && offData.lng !== null ? parseFloat(offData.lng) : (offData.longitude !== undefined && offData.longitude !== null ? parseFloat(offData.longitude) : null);
     const mapLink = latVal && lngVal ? `https://maps.google.com/?q=${latVal},${lngVal}` : (offData.map_link || '');
@@ -303,7 +330,7 @@ export const AppProvider = ({ children }) => {
     };
 
     try {
-      const res = await authFetch('http://127.0.0.1:8000/api/criminal/officer_information', {
+      const res = await authFetch(officerApi.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -337,6 +364,8 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateOfficer = async (id, updateData) => {
+    const officerApi = getOfficerApiBase();
+    if (!officerApi.url) return;
     const target = officers.find(o => o.id === id || o.officer_id === id || o.mongo_id === id);
     const docId = target?.mongo_id || id;
     const latVal = updateData.lat !== undefined ? parseFloat(updateData.lat) : (target?.latitude || null);
@@ -359,7 +388,9 @@ export const AppProvider = ({ children }) => {
     };
 
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/criminal/officer_information/${docId}`, {
+      const officerApi = getOfficerApiBase();
+      if (!officerApi.url) return;
+      const res = await authFetch(`${officerApi.url}/${docId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -378,11 +409,15 @@ export const AppProvider = ({ children }) => {
 
   const deleteOfficer = async (id) => {
     if (!id) return;
+    const officerApi = getOfficerApiBase();
+    if (!officerApi.url) return;
     const target = officers.find(o => o.id === id || o.officer_id === id || o.mongo_id === id);
     const docId = target?.mongo_id || id;
 
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/criminal/officer_information/${docId}`, {
+      const officerApi = getOfficerApiBase();
+      if (!officerApi.url) return;
+      const res = await authFetch(`${officerApi.url}/${docId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -404,55 +439,59 @@ export const AppProvider = ({ children }) => {
 
   // Core Datasets (MongoDB Atlas is source of truth - in-memory state only)
   const [kpis, setKpis] = useState(initialKPIs);
-  const [cameras, setCameras] = useState([]);
+  const [cameras, setCameras] = useState(() => getCachedData('sda_cache_cameras', []));
   const [pendingCameraLocation, setPendingCameraLocation] = useState(null);
 
-  // --- CAMERA NETWORK MONGO DB CRUD API SYNC (Criminal_traking -> camera_network) ---
-  const fetchCameras = async () => {
+  // --- CAMERA NETWORK MONGO DB CRUD API SYNC (Module-Isolated: each module uses its own DB) ---
+
+  // Returns the correct camera API prefix based on active module
+  const getCameraApiBase = (modOverride) => {
+    const mod = (modOverride || activeModule || localStorage.getItem('sda_active_module') || 'criminal-tracking').toLowerCase();
+    if (mod === 'attendance' || mod === 'students') return '/api/attendance';
+    if (mod === 'missing-child' || mod === 'missing_child') return '/api/missing-children';
+    if (mod === 'anpr' || mod === 'vehicle') return '/api/anpr';
+    if (mod === 'defence' || mod === 'defence-tactical') return '/api/defence';
+    return '/api/criminal'; // criminal-tracking default
+  };
+
+  const normalizeCameraDoc = (doc) => {
+    const latVal = doc.latitude !== undefined ? parseFloat(doc.latitude) : (doc.lat !== undefined ? parseFloat(doc.lat) : 22.7196);
+    const lngVal = doc.longitude !== undefined ? parseFloat(doc.longitude) : (doc.lng !== undefined ? parseFloat(doc.lng) : 75.8577);
+    const mapLink = doc.map_link || `https://maps.google.com/?q=${latVal},${lngVal}`;
+    return {
+      id: doc.camera_id || doc.id || doc._id,
+      mongo_id: doc.id || doc._id || doc.camera_id,
+      camera_id: doc.camera_id || doc.id || `CAM-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: doc.camera_name || doc.name || 'Security CCTV Node',
+      camera_name: doc.camera_name || doc.name || 'Security CCTV Node',
+      location: doc.location || doc.address || 'City Location',
+      address: doc.location || doc.address || 'City Location',
+      lat: latVal, lng: lngVal, latitude: latVal, longitude: lngVal,
+      map_link: mapLink,
+      created_at: doc.created_at || new Date().toISOString(),
+      status: doc.status || 'Online',
+      type: doc.type || '4K Security Camera'
+    };
+  };
+
+  const fetchCameras = async (modOverride) => {
     const token = localStorage.getItem('sda_token');
-    if (!token) {
-      setCameras([]);
-      return;
-    }
+    if (!token) { setCameras([]); return; }
     try {
-      const res = await authFetch('http://127.0.0.1:8000/api/criminal/camera_network');
+      const base = getCameraApiBase(modOverride);
+      const res = await authFetch(`${base}/camera_network`);
       if (res.ok) {
         const result = await res.json();
         if (result && result.status === 'success' && Array.isArray(result.data)) {
-          const list = result.data.map(doc => {
-            const latVal = doc.latitude !== undefined ? parseFloat(doc.latitude) : (doc.lat !== undefined ? parseFloat(doc.lat) : 22.7196);
-            const lngVal = doc.longitude !== undefined ? parseFloat(doc.longitude) : (doc.lng !== undefined ? parseFloat(doc.lng) : 75.8577);
-            const mapLink = doc.map_link || `https://maps.google.com/?q=${latVal},${lngVal}`;
-
-            return {
-              id: doc.camera_id || doc.id || doc._id,
-              mongo_id: doc.id || doc._id || doc.camera_id,
-              camera_id: doc.camera_id || doc.id || `CAM-${Math.floor(1000 + Math.random() * 9000)}`,
-              name: doc.camera_name || doc.name || 'Security CCTV Node',
-              camera_name: doc.camera_name || doc.name || 'Security CCTV Node',
-              location: doc.location || doc.address || 'City Location',
-              address: doc.location || doc.address || 'City Location',
-              lat: latVal,
-              lng: lngVal,
-              latitude: latVal,
-              longitude: lngVal,
-              map_link: mapLink,
-              created_at: doc.created_at || new Date().toISOString(),
-              status: doc.status || 'Online',
-              type: doc.type || '4K Security Camera'
-            };
-          });
+          const list = result.data.map(normalizeCameraDoc);
           setCameras(list);
+          setCachedData('sda_cache_cameras', list);
         }
       }
     } catch (e) {
       console.warn("Error fetching camera_network from MongoDB:", e);
     }
   };
-
-  useEffect(() => {
-    fetchCameras();
-  }, []);
 
   const addCamera = async (camData) => {
     const latVal = camData.lat !== undefined && camData.lat !== null ? parseFloat(camData.lat) : 22.7196;
@@ -465,23 +504,21 @@ export const AppProvider = ({ children }) => {
       camera_name: camData.name || camData.camera_name || 'CCTV Camera Node',
       location: camData.location || camData.address || 'City Location',
       address: camData.location || camData.address || 'City Location',
-      latitude: latVal,
-      longitude: lngVal,
-      map_link: mapLink,
-      created_at: nowIso,
-      status: camData.status || 'Online',
+      latitude: latVal, longitude: lngVal, map_link: mapLink,
+      created_at: nowIso, status: camData.status || 'Online',
       type: camData.type || '4K Security Camera'
     };
 
+    const base = getCameraApiBase();
     try {
-      const res = await authFetch('http://127.0.0.1:8000/api/criminal/camera_network', {
+      const res = await authFetch(`${base}/camera_network`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
         const data = await res.json();
-        showToast('Camera Saved to MongoDB', `Camera ${payload.camera_name} stored in Criminal_traking.camera_network`, 'success');
+        showToast('Camera Saved', `Camera ${payload.camera_name} stored in module database.`, 'success');
         await fetchCameras();
         return data;
       }
@@ -492,11 +529,8 @@ export const AppProvider = ({ children }) => {
     // Local fallback
     const fallbackCam = {
       ...payload,
-      id: payload.camera_id,
-      name: payload.camera_name,
-      address: payload.location,
-      lat: payload.latitude,
-      lng: payload.longitude
+      id: payload.camera_id, name: payload.camera_name,
+      address: payload.location, lat: payload.latitude, lng: payload.longitude
     };
     setCameras(prev => [fallbackCam, ...prev]);
     showToast('Camera Added', `Camera ${payload.camera_name} added to session.`, 'info');
@@ -515,21 +549,20 @@ export const AppProvider = ({ children }) => {
       camera_name: updateData.name || updateData.camera_name || targetCam?.name || 'CCTV Camera',
       location: updateData.location || updateData.address || targetCam?.location || 'City Grid',
       address: updateData.location || updateData.address || targetCam?.location || 'City Grid',
-      latitude: latVal,
-      longitude: lngVal,
-      map_link: mapLink,
+      latitude: latVal, longitude: lngVal, map_link: mapLink,
       status: updateData.status || targetCam?.status || 'Online',
       type: updateData.type || targetCam?.type || '4K Security Camera'
     };
 
+    const base = getCameraApiBase();
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/criminal/camera_network/${docId}`, {
+      const res = await authFetch(`${base}/camera_network/${docId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        showToast('Camera Updated', `Camera ${payload.camera_name} updated in MongoDB`, 'success');
+        showToast('Camera Updated', `Camera ${payload.camera_name} updated in module database.`, 'success');
         await fetchCameras();
         return;
       }
@@ -545,21 +578,16 @@ export const AppProvider = ({ children }) => {
     const target = cameras.find(c => c.id === id || c.camera_id === id || c.mongo_id === id);
     const docId = target?.mongo_id || id;
 
+    // Optimistic UI removal
+    setCameras(prev => prev.filter(c => c.id !== id && c.camera_id !== id && c.mongo_id !== id));
+
+    const base = getCameraApiBase();
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/criminal/camera_network/${docId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        showToast('Camera Deleted', `Document removed from Criminal_traking.camera_network`, 'info');
-        await fetchCameras();
-        return;
-      }
+      await authFetch(`${base}/camera_network/${docId}`, { method: 'DELETE' });
+      showToast('Camera Deleted', `Camera ${id} removed from module database.`, 'info');
     } catch (e) {
       console.error("Error deleting camera from MongoDB:", e);
     }
-
-    setCameras(prev => prev.filter(c => c.id !== id && c.camera_id !== id));
-    showToast('Camera Removed', `Camera ${id} removed from session.`, 'info');
   };
   const [alerts, setAlerts] = useState(() => getCachedData('sda_cache_alerts', []));
   const [personnel, setPersonnel] = useState(() => getCachedData('sda_cache_personnel', []));
@@ -583,6 +611,8 @@ export const AppProvider = ({ children }) => {
       'sda_cache_vehicles',
       'sda_cache_missing_children',
       'sda_cache_inventory',
+      'sda_cache_officers',
+      'sda_cache_cameras',
       'sda_personnel',
       'sda_watchlist',
       'sda_vehicles',
@@ -695,7 +725,7 @@ export const AppProvider = ({ children }) => {
     return () => clearInterval(timer);
   }, [currentShiftDate]);
 
-  // ⚡ One-Time Initial Load from MongoDB Atlas on Startup (ZERO Automatic Background Continuous Polling)
+  // ⚡ One-Time Consolidated Startup Data Load (Parallel HTTP Wave via Promise.all)
   const abortControllerRef = React.useRef(null);
 
   useEffect(() => {
@@ -703,135 +733,177 @@ export const AppProvider = ({ children }) => {
     if (!window.__app_mount_time) window.__app_mount_time = mountTimestamp;
     console.log(`[PERF] App mount: ${mountTimestamp.toFixed(2)} ms`);
 
-    // Purge obsolete large keys from localStorage to prevent QuotaExceededError permanently
     purgeObsoleteLocalStorage();
 
     let isMounted = true;
 
-    // Verify session token and restore admin context if token exists
-    const restoreSession = async () => {
-      const authStart = performance.now();
-      console.log(`[PERF] Auth restore start: ${authStart.toFixed(2)} ms`);
+    const loadAllInitialDataParallel = async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
 
+      const startPerf = performance.now();
       const token = localStorage.getItem('sda_token');
+      
       let parsedUser = {};
       try {
         const savedUser = localStorage.getItem('sda_user');
         if (savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
           parsedUser = JSON.parse(savedUser);
         }
-      } catch (e) {
-        console.warn('[AppContext] Failed to parse savedUser during restoreSession:', e);
-      }
-      console.log(`[REFRESH AUTH]\ntoken present: ${!!token}\nadmin_id: ${parsedUser?.admin_id || 'N/A'}\nisAuthenticated: ${isAuthenticated}`);
+      } catch (e) {}
 
-      if (token) {
-        try {
-          const res = await authFetch('http://127.0.0.1:8000/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const authDuration = performance.now() - authStart;
-          console.log(`[PERF] Auth restore complete: ${authDuration.toFixed(2)} ms (Status: ${res.status})`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.status === 'success' && data.user && isMounted) {
-              const mergedUser = {
-                ...parsedUser,
-                name: data.user.username || parsedUser.name || 'Command Admin',
-                username: data.user.username || parsedUser.username,
-                admin_id: data.user.admin_id || parsedUser.admin_id,
-                role: data.user.role || parsedUser.role || 'admin',
-                moduleId: data.user.moduleId || parsedUser.moduleId
-              };
-              setUser(mergedUser);
-              setIsAuthenticated(true);
-              safeSetLocalStorage('sda_user', mergedUser);
-              safeSetLocalStorage('sda_auth', 'true');
-            }
-          }
-        } catch (e) {
-          console.warn("[Auth Restoration] Token verification notice:", e);
+      const activeMod = (parsedUser?.moduleId || localStorage.getItem('sda_active_module') || '').toLowerCase();
+      const isCriminalMod = activeMod === 'criminal-tracking' || activeMod === 'criminal';
+      const isAttendanceMod = activeMod === 'attendance' || activeMod === 'students';
+
+      // Resolve module-specific camera API prefix at startup
+      const getCameraApiBaseStatic = (mod) => {
+        if (mod === 'attendance' || mod === 'students') return '/api/attendance';
+        if (mod === 'missing-child' || mod === 'missing_child') return '/api/missing-children';
+        if (mod === 'anpr' || mod === 'vehicle') return '/api/anpr';
+        if (mod === 'defence' || mod === 'defence-tactical') return '/api/defence';
+        return '/api/criminal';
+      };
+      const camApiBase = getCameraApiBaseStatic(activeMod);
+
+      try {
+        const requests = [
+          authFetch('/api/initial-data').then(res => res && res.ok ? res.json() : null).catch(() => null),
+          token ? authFetch('/api/auth/me').then(res => res && res.ok ? res.json() : null).catch(() => null) : Promise.resolve(null),
+          token ? authFetch(`${camApiBase}/camera_network`).then(res => res && res.ok ? res.json() : null).catch(() => null) : Promise.resolve(null),
+          token && getOfficerApiBase(activeMod).isAuth ? authFetch(getOfficerApiBase(activeMod).url).then(res => res && res.ok ? res.json() : null).catch(() => null) : Promise.resolve(null)
+        ];
+
+        const [initialJson, authJson, cameraJson, officerJson] = await Promise.all(requests);
+        if (!isMounted) return;
+
+        // 1. Auth session restoration
+        if (authJson && authJson.status === 'success' && authJson.user) {
+          const mergedUser = {
+            ...parsedUser,
+            name: authJson.user.username || parsedUser.name || 'Command Admin',
+            username: authJson.user.username || parsedUser.username,
+            admin_id: authJson.user.admin_id || parsedUser.admin_id,
+            role: authJson.user.role || parsedUser.role || 'admin',
+            moduleId: authJson.user.moduleId || parsedUser.moduleId
+          };
+          setUser(mergedUser);
+          setIsAuthenticated(true);
+          safeSetLocalStorage('sda_user', mergedUser);
+          safeSetLocalStorage('sda_auth', 'true');
         }
-      } else {
-        console.log(`[PERF] Auth restore complete: ${(performance.now() - authStart).toFixed(2)} ms (No token)`);
+
+        // 2. Initial Datasets (Personnel, Watchlist, Vehicles, Missing, Inventory, Alerts)
+        if (initialJson && initialJson.status === 'success' && initialJson.data) {
+          const {
+            personnel = [],
+            watchlist = [],
+            vehicles = [],
+            missingChildren = [],
+            inventory = [],
+            alerts = []
+          } = initialJson.data;
+
+          const validPersonnel = personnel.filter(d => 
+            d && (d.id || d._id) && 
+            !deletedPersonnelIdsRef.current.has(String(d.id || d._id).trim().toLowerCase()) &&
+            d.id !== 'STU-E2E-999' &&
+            d.name !== 'Frontend E2E Student'
+          );
+
+          setPersonnel(validPersonnel);
+          setCachedData('sda_cache_personnel', validPersonnel);
+
+          setWatchlist(watchlist);
+          setCachedData('sda_cache_watchlist', watchlist);
+
+          setVehicles(vehicles);
+          setCachedData('sda_cache_vehicles', vehicles);
+
+          setMissingChildren(missingChildren);
+          setCachedData('sda_cache_missing_children', missingChildren);
+
+          setDepotInventory(inventory);
+          setCachedData('sda_cache_inventory', inventory);
+
+          const normalizedAlerts = alerts.map((alt, idx) => {
+            const alertId = alt.id || alt._id || `ALT-${idx + 1000}`;
+            const timestampIso = getRealIsoTimestamp(alt);
+            return {
+              ...alt,
+              id: alertId,
+              _id: alt._id || alertId,
+              timestamp: timestampIso,
+              createdAt: timestampIso,
+              formattedRealTime: formatRealDateTime(timestampIso),
+              timeAgo: formatTimeAgo(timestampIso)
+            };
+          });
+          normalizedAlerts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setAlerts(normalizedAlerts);
+          setCachedData('sda_cache_alerts', normalizedAlerts);
+        }
+
+        // 3. Camera Network
+        if (cameraJson && cameraJson.status === 'success' && Array.isArray(cameraJson.data)) {
+          const camList = cameraJson.data.map(normalizeCameraDoc);
+          setCameras(camList);
+          setCachedData('sda_cache_cameras', camList);
+        }
+
+
+        // 4. Officer Information
+        if (officerJson && officerJson.status === 'success' && Array.isArray(officerJson.data)) {
+          const offList = officerJson.data.map(doc => {
+            const locObj = typeof doc.police_station_location === 'object' && doc.police_station_location ? doc.police_station_location : {};
+            const latVal = doc.latitude !== undefined && doc.latitude !== null ? parseFloat(doc.latitude) : (locObj.latitude !== undefined && locObj.latitude !== null ? parseFloat(locObj.latitude) : null);
+            const lngVal = doc.longitude !== undefined && doc.longitude !== null ? parseFloat(doc.longitude) : (locObj.longitude !== undefined && locObj.longitude !== null ? parseFloat(locObj.longitude) : null);
+            const mapLink = doc.map_link || locObj.map_link || (latVal && lngVal ? `https://maps.google.com/?q=${latVal},${lngVal}` : '');
+            const stationLocText = doc.police_station_location?.address || doc.stationLocation || doc.location || doc.address || 'Police Station Location';
+
+            return {
+              mongo_id: doc.id || doc._id || doc.officer_id,
+              id: doc.officer_id || doc.id || doc._id,
+              officer_id: doc.officer_id || doc.officerId || doc.id || `OFFICER-${Math.floor(1000 + Math.random() * 9000)}`,
+              officer_name: doc.officer_name || doc.name || 'Police Officer',
+              name: doc.officer_name || doc.name || 'Police Officer',
+              rank: doc.rank || doc.designation || 'Inspector',
+              designation: doc.rank || doc.designation || 'Inspector',
+              police_station_name: doc.police_station_name || doc.stationName || doc.station_name || 'Police Station',
+              stationName: doc.police_station_name || doc.stationName || doc.station_name || 'Police Station',
+              police_station_location: {
+                address: stationLocText,
+                latitude: latVal,
+                longitude: lngVal,
+                map_link: mapLink
+              },
+              location: stationLocText,
+              address: stationLocText,
+              stationLocation: stationLocText,
+              latitude: latVal,
+              longitude: lngVal,
+              lat: latVal,
+              lng: lngVal,
+              map_link: mapLink,
+              officer_email: doc.officer_email || doc.email || 'officer@police.gov.in',
+              email: doc.officer_email || doc.email || 'officer@police.gov.in',
+              created_at: doc.created_at || new Date().toISOString()
+            };
+          });
+          setOfficers(offList);
+          setDispatchPhoneNumbers(offList);
+          setCachedData('sda_cache_officers', offList);
+        }
+
+        console.log(`[PERF] Parallel initial startup dataset fetch completed in ${(performance.now() - startPerf).toFixed(2)} ms`);
+      } catch (e) {
+        console.warn('[Parallel Startup Data Fetch Error]', e);
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 
-    const fetchInitialModuleData = () => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-
-      const regFetchStart = performance.now();
-      console.log(`[PERF] Registered Data fetch start: ${regFetchStart.toFixed(2)} ms`);
-
-      const token = localStorage.getItem('sda_token');
-      const reqHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-      authFetch('http://127.0.0.1:8000/api/initial-data')
-        .then(res => res && res.ok ? res.json() : null)
-        .then(json => {
-          if (!isMounted) return;
-          if (json && json.status === 'success' && json.data) {
-            const {
-              personnel = [],
-              watchlist = [],
-              vehicles = [],
-              missingChildren = [],
-              inventory = [],
-              alerts = []
-            } = json.data;
-
-            const validPersonnel = personnel.filter(d => 
-              d && d.id && 
-              !deletedPersonnelIdsRef.current.has(String(d.id).trim().toLowerCase()) &&
-              d.id !== 'STU-E2E-999' &&
-              d.name !== 'Frontend E2E Student' &&
-              d.name !== 'Test Student Verification'
-            );
-
-            setPersonnel(validPersonnel);
-            setCachedData('sda_cache_personnel', validPersonnel);
-
-            setWatchlist(watchlist);
-            setCachedData('sda_cache_watchlist', watchlist);
-
-            setVehicles(vehicles);
-            setCachedData('sda_cache_vehicles', vehicles);
-
-            setMissingChildren(missingChildren);
-            setCachedData('sda_cache_missing_children', missingChildren);
-
-            setDepotInventory(inventory);
-            setCachedData('sda_cache_inventory', inventory);
-
-            const normalizedAlerts = alerts.map((alt, idx) => {
-              const alertId = alt.id || alt._id || `ALT-${idx + 1000}`;
-              const timestampIso = getRealIsoTimestamp(alt);
-              return {
-                ...alt,
-                id: alertId,
-                _id: alt._id || alertId,
-                timestamp: timestampIso,
-                createdAt: timestampIso,
-                formattedRealTime: formatRealDateTime(timestampIso),
-                timeAgo: formatTimeAgo(timestampIso)
-              };
-            });
-            normalizedAlerts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-            setAlerts(normalizedAlerts);
-            setCachedData('sda_cache_alerts', normalizedAlerts);
-
-            console.log(`[PERF] All initial module datasets loaded via batch API in ${(performance.now() - regFetchStart).toFixed(2)} ms`);
-          }
-        })
-        .catch(e => console.warn('[Batch Initial Data Fetch Notice]', e))
-        .finally(() => {
-          isFetchingRef.current = false;
-        });
-    };
-
-    restoreSession();
-    fetchInitialModuleData();
+    loadAllInitialDataParallel();
 
     return () => {
       isMounted = false;
@@ -866,6 +938,84 @@ export const AppProvider = ({ children }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // ⚡ Post-Login Data Re-Hydration: Fetch cameras + officers whenever auth/module state changes.
+  // Needed because the startup useEffect([]) fires ONCE at mount, before login, so isCriminalMod=false
+  // and criminal-tracking specific data (cameras, officers) is not fetched. This effect catches the
+  // state transition when loginModule() sets isAuthenticated=true and activeModule='criminal-tracking'.
+  const isFetchingPostLoginRef = React.useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem('sda_token');
+    if (!token) return;
+    if (isFetchingPostLoginRef.current) return;
+
+    const mod = (activeModule || '').toLowerCase();
+    const isCriminal = mod === 'criminal-tracking' || mod === 'criminal';
+
+    // Determine camera API base for this module
+    const getCamBase = (m) => {
+      if (m === 'attendance' || m === 'students') return '/api/attendance';
+      if (m === 'missing-child' || m === 'missing_child') return '/api/missing-children';
+      if (m === 'anpr' || m === 'vehicle') return '/api/anpr';
+      if (m === 'defence' || m === 'defence-tactical') return '/api/defence';
+      return '/api/criminal';
+    };
+    const camBase = getCamBase(mod);
+
+    isFetchingPostLoginRef.current = true;
+    (async () => {
+      try {
+        const fetches = [
+          authFetch(`${camBase}/camera_network`).then(r => r && r.ok ? r.json() : null).catch(() => null),
+          isCriminal
+            ? authFetch('/api/criminal/officer_information').then(r => r && r.ok ? r.json() : null).catch(() => null)
+            : Promise.resolve(null)
+        ];
+        const [camJson, offJson] = await Promise.all(fetches);
+
+        if (camJson && camJson.status === 'success' && Array.isArray(camJson.data)) {
+          const camList = camJson.data.map(normalizeCameraDoc);
+          setCameras(camList);
+          setCachedData('sda_cache_cameras', camList);
+        }
+
+        if (offJson && offJson.status === 'success' && Array.isArray(offJson.data)) {
+          const offList = offJson.data.map(doc => {
+            const locObj = typeof doc.police_station_location === 'object' && doc.police_station_location ? doc.police_station_location : {};
+            const latVal = doc.latitude != null ? parseFloat(doc.latitude) : (locObj.latitude != null ? parseFloat(locObj.latitude) : null);
+            const lngVal = doc.longitude != null ? parseFloat(doc.longitude) : (locObj.longitude != null ? parseFloat(locObj.longitude) : null);
+            const mapLink = doc.map_link || locObj.map_link || (latVal && lngVal ? `https://maps.google.com/?q=${latVal},${lngVal}` : '');
+            const stationLocText = doc.police_station_location?.address || doc.stationLocation || doc.location || doc.address || 'Police Station Location';
+            return {
+              mongo_id: doc.id || doc._id || doc.officer_id,
+              id: doc.officer_id || doc.id || doc._id,
+              officer_id: doc.officer_id || doc.officerId || doc.id || `OFFICER-${Math.floor(1000 + Math.random() * 9000)}`,
+              officer_name: doc.officer_name || doc.name || 'Police Officer',
+              name: doc.officer_name || doc.name || 'Police Officer',
+              rank: doc.rank || doc.designation || 'Inspector',
+              designation: doc.rank || doc.designation || 'Inspector',
+              police_station_name: doc.police_station_name || doc.stationName || doc.station_name || 'Police Station',
+              stationName: doc.police_station_name || doc.stationName || doc.station_name || 'Police Station',
+              police_station_location: { address: stationLocText, latitude: latVal, longitude: lngVal, map_link: mapLink },
+              location: stationLocText, address: stationLocText, stationLocation: stationLocText,
+              latitude: latVal, longitude: lngVal, lat: latVal, lng: lngVal, map_link: mapLink,
+              officer_email: doc.officer_email || doc.email || 'officer@police.gov.in',
+              email: doc.officer_email || doc.email || 'officer@police.gov.in',
+              created_at: doc.created_at || new Date().toISOString()
+            };
+          });
+          setOfficers(offList);
+          setDispatchPhoneNumbers(offList);
+          setCachedData('sda_cache_officers', offList);
+        }
+      } catch (e) {
+        console.warn('[Post-login data re-hydration error]', e);
+      } finally {
+        isFetchingPostLoginRef.current = false;
+      }
+    })();
+  }, [isAuthenticated, activeModule]);
 
   // Toast Notification helper
   const showToast = (title, message, type = 'info') => {
@@ -1098,6 +1248,22 @@ export const AppProvider = ({ children }) => {
           dateTime: fullDateTime
         });
 
+        if (status === 'Present' || status === 'Late') {
+          const camId = targetPerson?.camera || options.camera || 'CAM-01';
+          const camLoc = targetPerson?.location || options.location || 'Main Gate Terminal';
+          addAlert({
+            id: `ALT-ATTE-${Math.floor(10000 + Math.random() * 90000)}`,
+            module: 'attendance',
+            type: 'Biometric Attendance Verified',
+            title: `ATTENDANCE RECORDED: ${markedName}`,
+            location: `${camLoc} / ${camId}`,
+            camera: camId,
+            priority: 'Verified',
+            description: `Student ${markedName} (ID: ${empId}) attendance marked as ${status} at ${formattedTime}.`,
+            status: 'Active'
+          });
+        }
+
         if (!options.silent) {
           showToast('Attendance Logged', `Attendance marked as ${status} for ${markedName} in MongoDB Atlas`, 'success');
         }
@@ -1217,25 +1383,42 @@ export const AppProvider = ({ children }) => {
 
   const removeFromWatchlist = async (id) => {
     if (!id) return;
+    const targetIdStr = String(id).trim();
+
+    setWatchlist(prev => {
+      const next = prev.filter(w => String(w.id || '').trim() !== targetIdStr && String(w._id || '').trim() !== targetIdStr);
+      setCachedData('sda_cache_watchlist', next);
+      return next;
+    });
+
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/criminal/watchlist/${encodeURIComponent(id)}`, {
+      await authFetch(`/api/criminal/watchlist/${encodeURIComponent(targetIdStr)}`, {
         method: 'DELETE'
       });
-      if (res.ok) {
-        setWatchlist(prev => prev.filter(w => w.id !== id));
-        showToast('Profile Removed', `Watchlist record ${id} removed from MongoDB Atlas.`, 'info');
-      }
+      showToast('Profile Removed', `Watchlist record ${targetIdStr} removed.`, 'info');
     } catch (e) {
-      console.error('Error removing suspect from MongoDB:', e);
+      console.warn('Backend delete notice:', e);
     }
   };
 
   const deleteMultipleWatchlist = async (ids = []) => {
     if (!ids || ids.length === 0) return;
+    const cleanIdsSet = new Set(ids.map(i => String(i).trim()));
+
+    setWatchlist(prev => {
+      const next = prev.filter(w => !cleanIdsSet.has(String(w.id || '').trim()) && !cleanIdsSet.has(String(w._id || '').trim()));
+      setCachedData('sda_cache_watchlist', next);
+      return next;
+    });
+
     for (const id of ids) {
-      await removeFromWatchlist(id);
+      try {
+        await authFetch(`/api/criminal/watchlist/${encodeURIComponent(String(id).trim())}`, {
+          method: 'DELETE'
+        });
+      } catch (e) {}
     }
-    showToast('Batch Profiles Removed', `Removed ${ids.length} suspect records from MongoDB Atlas.`, 'info');
+    showToast('Batch Profiles Removed', `Removed ${ids.length} suspect records from database.`, 'info');
   };
 
   const addCriminalDetection = async (detectionData) => {
@@ -1266,14 +1449,13 @@ export const AppProvider = ({ children }) => {
 
   // Alert Handlers
   const addAlert = async (alertData) => {
-    if (alertData.type?.includes('Attendance Check-in') || alertData.title?.includes('ATTENDANCE MARKED')) {
-      return;
-    }
     const fullText = `${alertData.title || ''} ${alertData.type || ''} ${alertData.description || ''}`.toLowerCase();
     let mod = alertData.module;
 
-    if (!mod || fullText.includes('watchlist') || fullText.includes('criminal') || fullText.includes('suspect') || fullText.includes('fugitive') || fullText.includes('ipc')) {
-      if (fullText.includes('watchlist') || fullText.includes('criminal') || fullText.includes('suspect') || fullText.includes('fugitive') || fullText.includes('ipc')) {
+    if (!mod || fullText.includes('watchlist') || fullText.includes('criminal') || fullText.includes('suspect') || fullText.includes('fugitive') || fullText.includes('ipc') || fullText.includes('attendance')) {
+      if (fullText.includes('attendance')) {
+        mod = 'attendance';
+      } else if (fullText.includes('watchlist') || fullText.includes('criminal') || fullText.includes('suspect') || fullText.includes('fugitive') || fullText.includes('ipc')) {
         mod = 'criminal-tracking';
       } else if (fullText.includes('case mc-') || fullText.includes('missing') || fullText.includes('child')) {
         mod = 'missing-child';
@@ -1288,6 +1470,7 @@ export const AppProvider = ({ children }) => {
 
     const nowIso = new Date().toISOString();
     const alertTs = alertData.timestamp || alertData.createdAt || nowIso;
+    const isAttendance = mod === 'attendance' || alertData.priority === 'Verified' || fullText.includes('attendance');
     const newAlert = {
       id: alertData.id || `ALT-${Math.floor(200 + Math.random() * 800)}`,
       module: mod,
@@ -1295,14 +1478,16 @@ export const AppProvider = ({ children }) => {
       title: alertData.title || alertData.type,
       location: alertData.location || 'Central Sector',
       camera: alertData.camera || 'CAM-01',
-      priority: alertData.priority || 'High',
+      priority: alertData.priority || (isAttendance ? 'Verified' : 'High'),
       timestamp: alertTs,
       createdAt: alertTs,
       timeAgo: formatTimeAgo(alertTs),
       description: alertData.description || 'Reported manual alert via Command Console.',
       status: 'Active',
-      icon: (alertData.priority === 'Critical' || alertData.priority === 'Critical Risk') ? 'Shield' : 'AlertTriangle',
-      badgeColor: (alertData.priority === 'Critical' || alertData.priority === 'Critical Risk' || alertData.priority === 'CRITICAL')
+      icon: isAttendance ? 'UserCheck' : (alertData.priority === 'Critical' || alertData.priority === 'Critical Risk') ? 'Shield' : 'AlertTriangle',
+      badgeColor: isAttendance
+        ? 'border-emerald-500/60 text-emerald-400 bg-emerald-500/10'
+        : (alertData.priority === 'Critical' || alertData.priority === 'Critical Risk' || alertData.priority === 'CRITICAL')
         ? 'border-red-500/50 text-red-400'
         : (alertData.priority === 'High' || alertData.priority === 'High Risk' || alertData.priority === 'HIGH')
         ? 'border-amber-500/50 text-amber-400'

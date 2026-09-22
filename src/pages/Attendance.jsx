@@ -327,12 +327,14 @@ export const Attendance = () => {
             const liveDescriptor = det.descriptor;
 
             for (const member of roster) {
-              let refEmbedding = referenceEmbeddingsRef.current[member.id];
+              const memId = member.id || member._id;
+              let refEmbedding = referenceEmbeddingsRef.current[memId] || (member.id ? referenceEmbeddingsRef.current[member.id] : null);
               if (!refEmbedding && member.photoUrl) {
                 const res = await detectAndExtractFaceDescriptor(member.photoUrl);
                 if (res.hasFace && res.descriptor) {
                   refEmbedding = res.descriptor;
-                  referenceEmbeddingsRef.current[member.id] = res.descriptor;
+                  referenceEmbeddingsRef.current[memId] = res.descriptor;
+                  if (member.id) referenceEmbeddingsRef.current[member.id] = res.descriptor;
                 }
               }
               if (!refEmbedding) continue;
@@ -347,10 +349,11 @@ export const Attendance = () => {
           const matchByFace = {};
 
           for (const c of candidates) {
+            const memId = c.member.id || c.member._id;
             if (c.dist > FACE_DISTANCE_THRESHOLD) continue;
-            if (usedFaces.has(c.faceIndex) || usedMembers.has(c.member.id)) continue;
+            if (usedFaces.has(c.faceIndex) || usedMembers.has(memId)) continue;
             usedFaces.add(c.faceIndex);
-            usedMembers.add(c.member.id);
+            usedMembers.add(memId);
             matchByFace[c.faceIndex] = c;
           }
 
@@ -376,23 +379,27 @@ export const Attendance = () => {
 
           for (const match of Object.values(matchByFace)) {
             const member = match.member;
-            
+            if (!member) continue;
+            const targetId = member.id || member._id;
+
             const todayRecord = member.attendanceHistory?.[todayStr];
-            const isAlreadyPresentToday = (todayRecord && (todayRecord.status === 'Present' || todayRecord.status === 'Late')) || member.status === 'Present';
+            const isAlreadyPresentToday = todayRecord && (todayRecord.status === 'Present' || todayRecord.status === 'Late');
 
             const lastMarked = Math.max(
+              lastMarkedTimesRef.current[targetId] || 0,
               lastMarkedTimesRef.current[member.id] || 0,
               member.lastMarkedAt || 0
             );
 
-            // 20-Hour Cooldown & 1-Attendance-Per-Day Lock
-            if (isAlreadyPresentToday || (lastMarked > 0 && (now - lastMarked < TWENTY_HOURS_MS))) {
+            // 5-second frame debouncing per member
+            if (isAlreadyPresentToday || (lastMarked > 0 && (now - lastMarked < 5000))) {
               continue;
             }
 
-            lastMarkedTimesRef.current[member.id] = now;
+            lastMarkedTimesRef.current[targetId] = now;
+            if (member.id) lastMarkedTimesRef.current[member.id] = now;
 
-            markAttendanceRef.current(member.id, 'Present', { silent: true, date: todayStr, time: liveTimeNowStr });
+            markAttendanceRef.current(targetId, 'Present', { silent: true, date: todayStr, time: liveTimeNowStr });
             showAttendancePopup({
               officer: member,
               time: liveTimeNowStr

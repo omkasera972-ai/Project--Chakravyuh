@@ -105,6 +105,320 @@ export const Dashboard = () => {
   const highRiskCount = (watchlist || []).filter(w => w.riskLevel === 'Critical' || w.riskLevel === 'High Risk' || w.riskLevel === 'Criminal').length;
   const activeCamerasCount = (cameras || []).filter(c => c.status === 'ACTIVE' || c.status === 'Live' || c.status === 'Online' || c.status === 'Active').length;
 
+  const presentCount = (personnel || []).filter(p => p.status === 'Present').length;
+  const totalPersonnelCount = (personnel || []).length;
+  const attendanceRate = totalPersonnelCount > 0 ? Math.round((presentCount / totalPersonnelCount) * 100) : 0;
+
+  if (currentModule === 'attendance') {
+    return (
+      <div className="space-y-7 select-none pb-8 min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 rounded-3xl p-4 sm:p-6">
+        {/* 1. Compact Header Banner */}
+        <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">
+                AI Face Recognition Attendance
+              </h1>
+              <span className="text-sm font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800/80 rounded-full px-3.5 py-1 inline-flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                System Online
+              </span>
+            </div>
+            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 font-medium max-w-3xl leading-relaxed">
+              Real-time facial recognition, contactless attendance logging, camera node telemetry.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(`/portal/attendance/attendance`)}
+              className="text-base font-extrabold px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2.5 transition-all cursor-pointer shadow-md active:scale-95"
+            >
+              <UserCheck className="w-5 h-5 stroke-[2.5]" />
+              <span>Launch Smart Attendance</span>
+              <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
+
+        {/* 2. 4 Compact Statistic Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Cameras Online */}
+          <div
+            onClick={() => navigate(`/portal/attendance/cameras`)}
+            className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-blue-400 dark:hover:border-blue-700 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-bold text-slate-600 dark:text-slate-300">Cameras Online</span>
+              <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400">
+                <Video className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight">
+              {activeCamerasCount} Nodes
+            </div>
+            <div className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-2">
+              Active Network Live
+            </div>
+          </div>
+
+          {/* Card 2: Present Today */}
+          <div
+            onClick={() => navigate(`/portal/attendance/students`)}
+            className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-700 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-bold text-slate-600 dark:text-slate-300">Present Today</span>
+              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400">
+                <UserCheck className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight">
+              {presentCount} Members
+            </div>
+            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+              Face Verified Logged
+            </div>
+          </div>
+
+          {/* Card 3: Registered Members */}
+          <div
+            onClick={() => navigate(`/portal/attendance/registered-data`)}
+            className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-teal-400 dark:hover:border-teal-700 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-bold text-slate-600 dark:text-slate-300">Registered Members</span>
+              <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/70 text-teal-600 dark:text-teal-400">
+                <ScanFace className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight">
+              {totalPersonnelCount} Enrolled
+            </div>
+            <div className="text-sm font-bold text-teal-600 dark:text-teal-400 mt-2">
+              Full Roster Database
+            </div>
+          </div>
+
+          {/* Card 4: Attendance Rate */}
+          <div
+            onClick={() => navigate(`/portal/attendance/reports`)}
+            className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-700 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-bold text-slate-600 dark:text-slate-300">Attendance Rate</span>
+              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight">
+              {attendanceRate}%
+            </div>
+            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+              Daily Attendance Ratio
+            </div>
+          </div>
+        </div>
+
+        {/* 3. 2-Column Section: Live Attendance & Camera Status */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: Live Attendance */}
+          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Live Attendance</h2>
+                <span className="text-base text-slate-500 dark:text-slate-400 font-medium">Contactless Facial Recognition Feed</span>
+              </div>
+              <button
+                onClick={() => navigate('/portal/attendance/attendance')}
+                className="text-base font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+              >
+                Launch Scanner →
+              </button>
+            </div>
+
+            <div className="bg-slate-950 text-white rounded-2xl p-5 space-y-4 relative overflow-hidden border border-slate-800">
+              <div className="flex items-center justify-between text-sm font-mono">
+                <span className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  CAMERA TERMINAL CAM-01 LOGGED
+                </span>
+                <span className="text-slate-400 font-bold">12ms LATENCY</span>
+              </div>
+
+              {personnel.filter(p => p.status === 'Present').length > 0 ? (
+                <div className="flex items-center space-x-4 bg-slate-900/90 border border-emerald-500/40 p-4 rounded-xl">
+                  <div className="w-14 h-14 rounded-xl bg-emerald-950 text-emerald-400 flex items-center justify-center overflow-hidden border border-emerald-500/40 flex-shrink-0">
+                    {personnel.find(p => p.status === 'Present')?.photoUrl ? (
+                      <img src={personnel.find(p => p.status === 'Present')?.photoUrl} alt="Scan" className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCheck className="w-7 h-7" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg font-black text-white truncate">
+                        {personnel.find(p => p.status === 'Present')?.name || 'Student Verified'}
+                      </span>
+                      <span className="text-sm font-black px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 rounded-md">
+                        MATCH 99.8%
+                      </span>
+                    </div>
+                    <p className="text-base text-slate-300 truncate mt-0.5 font-medium">
+                      {personnel.find(p => p.status === 'Present')?.id} • {personnel.find(p => p.status === 'Present')?.department}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 text-center text-base text-slate-400 font-medium">
+                  Stand in front of the active camera terminal to scan attendance.
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-1 text-sm text-slate-400 font-medium">
+                <span>Multi-Face Engine: Active</span>
+                <span>Cooldown: 12 Hours</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Camera Status */}
+          <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Camera Status</h2>
+                <span className="text-base text-slate-500 dark:text-slate-400 font-medium">Active Terminal Nodes</span>
+              </div>
+              <button
+                onClick={() => navigate('/portal/attendance/cameras')}
+                className="text-base font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                Manage Nodes →
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {(cameras.length > 0 ? cameras : [
+                { id: 'CAM-01', name: 'Main Gate Terminal 01', location: 'Gate 1', status: 'ACTIVE' },
+                { id: 'CAM-02', name: 'Academic Block Entrance', location: 'Block A', status: 'ACTIVE' },
+                { id: 'CAM-03', name: 'Library Entry Terminal', location: 'Library', status: 'ACTIVE' },
+                { id: 'CAM-04', name: 'Science Lab Checkpoint', location: 'Lab 2', status: 'ACTIVE' }
+              ]).map((cam) => (
+                <div
+                  key={cam.id}
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-[#161922] border border-slate-200/80 dark:border-slate-800"
+                >
+                  <div className="flex items-center space-x-3.5">
+                    <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">{cam.name || cam.id}</h4>
+                      <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{cam.location || 'Campus Gate'}</span>
+                    </div>
+                  </div>
+                  <span className="text-xs sm:text-sm font-black px-3 py-1 rounded-md bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                    ONLINE 1080p
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Recent Attendance Activity Table */}
+        <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                Recent Attendance Activity
+              </h2>
+              <p className="text-base text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                Live contactless attendance check-in events logged by campus camera terminals
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/portal/attendance/students')}
+              className="text-base font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+            >
+              View All Roster →
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="pb-3 pt-1 px-3">Member Details</th>
+                  <th className="pb-3 pt-1 px-3">ID / Roll No</th>
+                  <th className="pb-3 pt-1 px-3">Department</th>
+                  <th className="pb-3 pt-1 px-3">Check-in Time</th>
+                  <th className="pb-3 pt-1 px-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {(personnel || []).filter(p => p.status === 'Present').slice(0, 6).map((person) => (
+                  <tr key={person.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                    <td className="py-3.5 px-3">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold overflow-hidden border border-emerald-200 dark:border-emerald-800 flex-shrink-0">
+                          {person.photoUrl ? (
+                            <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <UserCheck className="w-5 h-5" />
+                          )}
+                        </div>
+                        <span className="text-base font-extrabold text-slate-900 dark:text-white">{person.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-3 text-base text-slate-600 dark:text-slate-300 font-mono font-semibold">{person.id}</td>
+                    <td className="py-3.5 px-3 text-base text-slate-600 dark:text-slate-300 font-medium">{person.department}</td>
+                    <td className="py-3.5 px-3 text-base font-mono font-bold text-slate-800 dark:text-slate-200">{person.entry || '--'}</td>
+                    <td className="py-3.5 px-3 text-right">
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-black ${
+                        person.status === 'Present'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
+                          : person.status === 'Late'
+                          ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 border border-slate-200 dark:border-slate-700'
+                      }`}>
+                        {person.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 5. Compact Quick Access Section */}
+        <div className="bg-white dark:bg-[#11141c] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Quick Access</h2>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { label: 'Attendance System', path: '/portal/attendance/attendance' },
+              { label: 'Student Information', path: '/portal/attendance/students' },
+              { label: 'Register New Data', path: '/portal/attendance/enrollment' },
+              { label: 'Registered Data', path: '/portal/attendance/registered-data' },
+              { label: 'Camera Network', path: '/portal/attendance/cameras' },
+              { label: 'Live Maps', path: '/portal/attendance/maps' },
+              { label: 'Reports', path: '/portal/attendance/reports' }
+            ].map((btn, idx) => (
+              <button
+                key={idx}
+                onClick={() => navigate(btn.path)}
+                className="text-base font-bold px-5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 text-slate-800 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-700 transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 select-none pb-4 min-h-screen bg-gradient-to-br from-slate-50/80 via-blue-50/20 to-indigo-50/20 dark:from-[#0a0d14] dark:via-[#0e111a] dark:to-[#111522] rounded-3xl p-2 sm:p-4">
       {/* Top Banner: Executive Overview */}

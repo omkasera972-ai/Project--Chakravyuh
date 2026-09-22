@@ -115,6 +115,49 @@ def verify_admin_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
     except Exception:
         return None
 
+def normalize_module_name(mod_id: Optional[str]) -> str:
+    """Normalize string module identifiers to unified canonical module codes."""
+    m = (mod_id or "").strip().lower()
+    if m in ["attendance", "students"]:
+        return "attendance"
+    elif m in ["criminal-tracking", "criminal", "watchlist"]:
+        return "criminal"
+    elif m in ["anpr", "anpr-system", "vehicles"]:
+        return "anpr"
+    elif m in ["missing-child", "missing-children", "missing"]:
+        return "missing-children"
+    elif m in ["defence", "defense", "inventory"]:
+        return "defence"
+    return m
+
+def verify_module_authorization(authorization: Optional[str], target_module: str) -> Dict[str, Any]:
+    """
+    Decodes bearer token and asserts that token's moduleId matches target_module.
+    Throws 401 if token is invalid/missing, or 403 Forbidden if token belongs to another module.
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Authorization header missing. Access denied to module '{target_module}'."
+        )
+    payload = verify_admin_token(authorization)
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid or expired authorization token for module '{target_module}'."
+        )
+    
+    token_module = normalize_module_name(payload.get("moduleId", ""))
+    required_module = normalize_module_name(target_module)
+
+    if token_module != required_module:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access Denied: Session token is bound to module '{token_module}' and cannot access module '{required_module}' APIs/data."
+        )
+    
+    return payload
+
 # --- 3. Exact Authentication Collection Mapping ---
 def get_auth_collection(module_id: str):
     """
@@ -168,7 +211,7 @@ async def login_admin(req: AdminLoginRequest, request: Request):
 
     coll = get_auth_collection(req.moduleId)
     
-    # 1. Query user account by username in exact module authentication collection
+    # 1. Query user account strictly in exact module authentication collection
     user_doc = await coll.find_one({
         "$or": [
             {"username": username},
@@ -176,19 +219,9 @@ async def login_admin(req: AdminLoginRequest, request: Request):
         ]
     })
 
-    # 2. Fallback to general users collection if not found in module collection
-    if not user_doc:
-        from database import db_users
-        user_doc = await db_users["users"].find_one({
-            "$or": [
-                {"username": username},
-                {"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}}
-            ]
-        })
-
     if not user_doc:
         record_failed_attempt(rate_key)
-        raise HTTPException(status_code=401, detail="Invalid admin username or password. Account not found.")
+        raise HTTPException(status_code=401, detail=f"Invalid admin username or password. Account not found in module '{req.moduleId}'.")
 
     stored_pwd = user_doc.get("password_hash") or user_doc.get("password") or user_doc.get("pass") or ""
     
@@ -234,24 +267,16 @@ async def create_new_admin(req: AdminRegisterRequest):
 
     coll = get_auth_collection(req.moduleId)
 
-    # Check if admin account already exists in this exact module collection or global db_users
+    # Check if admin account already exists in this exact module collection
     existing_user = await coll.find_one({
         "$or": [
             {"username": username},
             {"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}}
         ]
     })
-    if not existing_user:
-        from database import db_users
-        existing_user = await db_users["users"].find_one({
-            "$or": [
-                {"username": username},
-                {"username": {"$regex": f"^{re.escape(username)}$", "$options": "i"}}
-            ]
-        })
 
     if existing_user:
-        raise HTTPException(status_code=400, detail="Admin account username already exists. Please login with your password.")
+        raise HTTPException(status_code=400, detail=f"Admin account username already exists in module '{req.moduleId}'. Please login with your password.")
 
     import uuid
     mod_code = req.moduleId.upper().replace("-", "")[:4]
@@ -271,13 +296,6 @@ async def create_new_admin(req: AdminRegisterRequest):
     }
 
     await coll.insert_one(new_admin_doc)
-    
-    # Also sync into global db_users collection for system-wide admin capability
-    from database import db_users
-    try:
-        await db_users["users"].insert_one(new_admin_doc)
-    except Exception:
-        pass
 
     token = create_admin_token(admin_id, username, req.moduleId)
 

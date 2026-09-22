@@ -1,41 +1,5 @@
 [
   {
-    "_id": "6aa43df2574d6a949af2b985",
-    "officer_id": "OFFICER-NEMAWAR-01",
-    "officer_name": "Officer Om Kasera",
-    "rank": "Station Incharge",
-    "police_station_name": "Nemawar Police Station",
-    "police_station_location": {
-      "address": "Nemawar, Dewas District, MP",
-      "latitude": 22.4632,
-      "longitude": 76.9381,
-      "map_link": "https://maps.google.com/?q=22.4632,76.9381"
-    },
-    "officer_email": "omkasera972@gmail.com",
-    "created_at": "2026-09-11T23:13:00Z",
-    "updated_at": "11 Sep 2026, 11:14:18 PM IST",
-    "timestamp": "2026-09-11T17:44:18Z",
-    "admin_id": "ADM-CRIM-1789132093"
-  },
-  {
-    "_id": "6aa44d0d1bbf9ecb090a589c",
-    "officer_id": "officer003",
-    "officer_name": "RK Gupta",
-    "rank": "SOP",
-    "police_station_name": "Nemawar police station",
-    "police_station_location": {
-      "address": "NH47, Nemawar, Khategaon Tahsil, Dewas, Madhya Pradesh, India",
-      "latitude": 22.505718021033402,
-      "longitude": 76.97879791259766,
-      "map_link": "https://maps.google.com/?q=22.505718021033402,76.97879791259766"
-    },
-    "officer_email": "omtamrakar84@gmail.com",
-    "created_at": "2026-09-11T18:48:45.398Z",
-    "updated_at": "12 Sep 2026, 12:18:45 AM IST",
-    "timestamp": "2026-09-11T18:48:45Z",
-    "admin_id": "ADM-CRIM-1789132093"
-  },
-  {
     "_id": "6aa5b9bee3aa3aad2a729372",
     "officer_id": "101",
     "officer_name": "Gourav",
@@ -52,5 +16,113 @@
     "admin_id": "ADM-CRIM-1789237723258-196ef4",
     "updated_at": "13 Sep 2026, 02:14:46 AM IST",
     "timestamp": "2026-09-12T20:44:46Z"
+  },
+  {
+    "officer_id": "officer01",
+    "officer_name": "om tamraak",
+    "rank": "Senior inspector",
+    "police_station_name": "Nemawar police station",
+    "police_station_location": {
+      "address": "NH47, Nemawar, Khategaon Tahsil, Dewas, Madhya Pradesh, India",
+      "latitude": 22.505866697087182,
+      "longitude": 76.97907686233522,
+      "map_link": "https://maps.google.com/?q=22.505866697087182,76.97907686233522"
+    },
+    "officer_email": "omkasera972@gmail.com",
+    "created_at": "2026-09-19T07:30:10.661Z",
+    "admin_id": "ADM-CRIM-chandan-70d45a",
+    "updated_at": "19 Sep 2026, 01:00:10 PM IST",
+    "timestamp": "2026-09-19T07:30:10Z",
+    "_id": "1789803010677"
+  },
+  {
+    "officer_id": "officer002",
+    "officer_name": "matter",
+    "rank": "sub inspector",
+    "police_station_name": "Nemawar ps",
+    "police_station_location": {
+      "address": "Harda Khas, Harda, Harda Tahsil, Harda, Madhya Pradesh, 461331, India",
+      "latitude": 22.34107548015872,
+      "longitude": 77.09599971771242,
+      "map_link": "https://maps.google.com/?q=22.34107548015872,77.09599971771242"
+    },
+    "officer_email": "omkasera972@gmail.com",
+    "created_at": "2026-09-19T08:16:33.942Z",
+    "admin_id": "ADM-CRIM-aavesh-5bf53b",
+    "updated_at": "19 Sep 2026, 01:46:33 PM IST",
+    "timestamp": "2026-09-19T08:16:33Z",
+    "_id": "1789805793955"
+  },
+  {
+    "officer_id": "Officer001",
+    "officer_name": "ritik",
+    "rank": "si",
+    "police_station_name": "Handia police station",
+    "police_station_location": {
+      "address": "NH47, Handiya, Handiya Tahsil, Harda, Madhya Pradesh, India",
+      "latitude": 22.482076495773075,
+      "longitude": 76.97859406471254,
+      "map_link": "https://maps.google.com/?q=22.482076495773075,76.97859406471254"
+    },
+    "officer_email": "mohammadaavesh17@gmail.com",
+    "created_at": "2026-09-19T08:30:17.459Z",
+    "admin_id": "ADM-CRIM-lala-51fbe6",
+    "updated_at": "19 Sep 2026, 02:00:17 PM IST",
+    "timestamp": "2026-09-19T08:30:17Z",
+    "_id": "1789806617472"
+  },
+  {
+    "officer_id": "officer09",
+    "officer_name": "ritikjii",
+    "rank": "chutiya",
+    "police_station_name": "Handia",
+    "police_station_location": {
+      "address": "Handiya, Handiya Tahsil, Harda, Madhya Pradesh, India",
+      "latitude": 22.482135976375908,
+      "longitude": 76.9786047935486,
+      "map_link": "https://maps.google.com/?q=22.482135976375908,76.9786047935486"
+    },
+    "officer_email": "ritikgurjar91312@gmail.com",
+    "created_at": "2026-09-19T08:34:46.867Z",
+    "admin_id": "ADM-CRIM-lala-51fbe6",
+    "updated_at": "19 Sep 2026, 02:04:46 PM IST",
+    "timestamp": "2026-09-19T08:34:46Z",
+    "_id": "1789806886873"
+  },
+  {
+    "officer_id": "Officer56",
+    "officer_name": "Rk gupta",
+    "rank": "Senior inspector",
+    "police_station_name": "Nemawar Police station",
+    "police_station_location": {
+      "address": "NH47, Nemawar, Khategaon Tahsil, Dewas, Madhya Pradesh, India",
+      "latitude": 22.505789881146026,
+      "longitude": 76.97903931140901,
+      "map_link": "https://maps.google.com/?q=22.505789881146026,76.97903931140901"
+    },
+    "officer_email": "abhaymeena1707@gmail.com",
+    "created_at": "2026-09-19T08:53:48.671Z",
+    "admin_id": "ADM-CRIM-om-50fec1",
+    "updated_at": "19 Sep 2026, 02:23:48 PM IST",
+    "timestamp": "2026-09-19T08:53:48Z",
+    "_id": "1789808028684"
+  },
+  {
+    "officer_id": "officer001",
+    "officer_name": "Rk gupta",
+    "rank": "Senior sp",
+    "police_station_name": "Nemawar ps",
+    "police_station_location": {
+      "address": "NH47, Nemawar, Khategaon Tahsil, Dewas, Madhya Pradesh, India",
+      "latitude": 22.50579979288277,
+      "longitude": 76.97909832000734,
+      "map_link": "https://maps.google.com/?q=22.50579979288277,76.97909832000734"
+    },
+    "officer_email": "omkasera972@gmail.com",
+    "created_at": "2026-09-19T10:32:38.045Z",
+    "admin_id": "ADM-CRIM-sheru-10499e",
+    "updated_at": "19 Sep 2026, 04:02:38 PM IST",
+    "timestamp": "2026-09-19T10:32:38Z",
+    "_id": "1789813958059"
   }
 ]

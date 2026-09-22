@@ -13,10 +13,27 @@ if root_dir not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(os.path.join(backend_dir, '.env'))
 
-try:
-    from backend.routers.auth import create_admin_token
-except ImportError:
-    from routers.auth import create_admin_token
+import hmac as _hmac
+import hashlib as _hashlib
+import base64 as _base64
+import time as _time
+import json as _json
+
+SECRET_KEY = os.getenv("SECRET_KEY", "chakravyuh-secret-key-2026")
+
+def create_admin_token(admin_id: str, username: str, module_id: str) -> str:
+    payload = {
+        "admin_id": admin_id,
+        "username": username,
+        "role": "admin",
+        "moduleId": module_id,
+        "iat": int(_time.time()),
+        "exp": int(_time.time()) + (86400 * 7)
+    }
+    raw_json = _json.dumps(payload).encode("utf-8")
+    b64_payload = _base64.urlsafe_b64encode(raw_json).decode("utf-8")
+    signature = _hmac.new(SECRET_KEY.encode("utf-8"), b64_payload.encode("utf-8"), _hashlib.sha256).hexdigest()
+    return f"{b64_payload}.{signature}"
 
 token = create_admin_token("ADM-CRIM-1789132093", "admin", "criminal")
 

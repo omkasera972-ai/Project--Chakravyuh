@@ -94,8 +94,47 @@ export const Sidebar = () => {
     }
   };
 
-  // Dedicated Nav Items: NO OTHER 4 MODULES SHOWN!
-  const navItems = [
+  // Defined navigation sections for Attendance module
+  const attendanceSections = [
+    {
+      title: 'OVERVIEW',
+      items: [
+        { name: 'Dashboard', path: `${basePath}/dashboard`, icon: Home }
+      ]
+    },
+    {
+      title: 'ATTENDANCE',
+      items: [
+        { name: 'Attendance System', path: `${basePath}/attendance`, icon: UserCheck },
+        { name: 'Student Information', path: `${basePath}/students`, icon: GraduationCap },
+        { name: 'Register New Data', path: `${basePath}/enrollment`, icon: UserPlus },
+        { name: 'Registered Data', path: `${basePath}/registered-data`, icon: Database }
+      ]
+    },
+    {
+      title: 'MONITORING',
+      items: [
+        { name: 'Camera Network', path: `${basePath}/cameras`, icon: Video },
+        { name: 'Live Maps', path: `${basePath}/maps`, icon: Map },
+        { name: 'Alerts & Triage', path: `${basePath}/alerts`, icon: Bell, badge: activeAlertsCount > 0 ? activeAlertsCount : null }
+      ]
+    },
+    {
+      title: 'ANALYTICS',
+      items: [
+        { name: 'Reports & Logs', path: `${basePath}/reports`, icon: FileText }
+      ]
+    },
+    {
+      title: 'SYSTEM',
+      items: [
+        { name: 'Settings', path: `${basePath}/settings`, icon: Settings }
+      ]
+    }
+  ];
+
+  // Default nav items for other modules
+  const defaultNavItems = [
     { name: 'Dashboard', path: `${basePath}/dashboard`, icon: Home },
     ...getModuleSpecificNavItems(currentModuleKey),
     { name: 'Camera Network', path: `${basePath}/cameras`, icon: Video },
@@ -135,34 +174,73 @@ export const Sidebar = () => {
       }`}
     >
       {/* Navigation Menu */}
-      <nav className="space-y-1.5 w-full overflow-hidden">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              title={isSidebarCollapsed ? item.name : undefined}
-              className={({ isActive }) =>
-                `flex items-center ${isSidebarCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-4 py-3'} rounded-xl text-base transition-all duration-150 cursor-pointer active:scale-[0.97] hover:scale-[1.01] ${
-                  isActive
-                    ? getActiveItemClasses(currentModuleKey)
-                    : 'text-gray-700 dark:text-gray-300 font-medium hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/70'
-                }`
-              }
-            >
-              <div className="flex items-center space-x-3.5">
-                <Icon className="w-5 h-5 flex-shrink-0 stroke-[2]" />
-                {!isSidebarCollapsed && <span className="tracking-tight">{item.name}</span>}
-              </div>
-              {!isSidebarCollapsed && item.badge && (
-                <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
-                  {item.badge}
-                </span>
+      <nav className="space-y-2 w-full overflow-y-auto max-h-[calc(100vh-100px)] pr-1 scrollbar-none">
+        {currentModuleKey === 'attendance' ? (
+          attendanceSections.map((section, idx) => (
+            <div key={idx} className="space-y-1">
+              {!isSidebarCollapsed && (
+                <div className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-3 pt-3 pb-1">
+                  {section.title}
+                </div>
               )}
-            </NavLink>
-          );
-        })}
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    title={isSidebarCollapsed ? item.name : undefined}
+                    className={({ isActive }) =>
+                      `flex items-center ${isSidebarCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-4 py-3'} rounded-xl text-[16px] transition-all duration-150 cursor-pointer active:scale-[0.97] hover:scale-[1.01] ${
+                        isActive
+                          ? getActiveItemClasses(currentModuleKey)
+                          : 'text-gray-700 dark:text-gray-300 font-semibold hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/70'
+                      }`
+                    }
+                  >
+                    <div className="flex items-center space-x-3.5">
+                      <Icon className="w-5 h-5 flex-shrink-0 stroke-[2]" />
+                      {!isSidebarCollapsed && <span className="tracking-tight">{item.name}</span>}
+                    </div>
+                    {!isSidebarCollapsed && item.badge && (
+                      <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                        {item.badge}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))
+        ) : (
+          defaultNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                title={isSidebarCollapsed ? item.name : undefined}
+                className={({ isActive }) =>
+                  `flex items-center ${isSidebarCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-4 py-3'} rounded-xl text-[14px] transition-all duration-150 cursor-pointer active:scale-[0.97] hover:scale-[1.01] ${
+                    isActive
+                      ? getActiveItemClasses(currentModuleKey)
+                      : 'text-gray-700 dark:text-gray-300 font-medium hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/70'
+                  }`
+                }
+              >
+                <div className="flex items-center space-x-3.5">
+                  <Icon className="w-5 h-5 flex-shrink-0 stroke-[2]" />
+                  {!isSidebarCollapsed && <span className="tracking-tight">{item.name}</span>}
+                </div>
+                {!isSidebarCollapsed && item.badge && (
+                  <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                    {item.badge}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })
+        )}
       </nav>
 
       {/* Logout Action pinned at bottom */}
@@ -170,9 +248,9 @@ export const Sidebar = () => {
         <button
           onClick={handleLogout}
           title={isSidebarCollapsed ? "Exit Portal" : undefined}
-          className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-2 py-3' : 'space-x-3.5 px-4 py-3'} rounded-xl text-base font-semibold text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-[#171a22] border border-gray-200 dark:border-gray-800 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150 active:scale-[0.97] hover:scale-[1.01] cursor-pointer shadow-xs`}
+          className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-2 py-2.5' : 'space-x-3 px-3.5 py-2.5'} rounded-xl text-[14px] font-semibold text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-[#171a22] border border-gray-200 dark:border-gray-800 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150 active:scale-[0.97] hover:scale-[1.01] cursor-pointer shadow-xs`}
         >
-          <LogOut className="w-5 h-5 flex-shrink-0 stroke-[2]" />
+          <LogOut className="w-4.5 h-4.5 flex-shrink-0 stroke-[2]" />
           {!isSidebarCollapsed && <span>Exit Portal</span>}
         </button>
       </div>

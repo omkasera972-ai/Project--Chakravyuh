@@ -213,12 +213,32 @@ class LocalCollection:
         return LocalDeleteResult(deleted_count)
 
 use_local: bool = False
+# Timestamp of when we last failed to reach Atlas; used for retry backoff
+_last_atlas_failure_time: float = 0.0
+# How many seconds to wait before retrying Atlas after a failure
+ATLAS_RETRY_INTERVAL: float = 30.0
 client: Optional[AsyncIOMotorClient] = None
+
+def _atlas_should_retry() -> bool:
+    """Returns True if enough time has passed to retry Atlas after a failure."""
+    global _last_atlas_failure_time
+    return time.time() - _last_atlas_failure_time >= ATLAS_RETRY_INTERVAL
+
+def _mark_atlas_failure():
+    """Record the current time as the last Atlas failure timestamp."""
+    global use_local, _last_atlas_failure_time
+    use_local = True
+    _last_atlas_failure_time = time.time()
 
 def get_motor_client() -> Optional[AsyncIOMotorClient]:
     global client, use_local
+    # If in local fallback mode, check if it's time to retry Atlas
     if use_local:
-        return None
+        if _atlas_should_retry():
+            logger.info("[ATLAS RETRY] Attempting to reconnect to MongoDB Atlas...")
+            use_local = False  # Optimistically try Atlas again
+        else:
+            return None
     if client is None:
         try:
             logger.info("Initializing Motor Async Client for MongoDB Atlas...")
@@ -235,11 +255,11 @@ def get_motor_client() -> Optional[AsyncIOMotorClient]:
             )
         except ConfigurationError as ce:
             logger.error(f"MongoDB Configuration Error: {ce}")
-            use_local = True
+            _mark_atlas_failure()
             return None
         except PyMongoError as pe:
             logger.error(f"PyMongo Client Error: {pe}")
-            use_local = True
+            _mark_atlas_failure()
             return None
         except Exception as e:
             logger.error(f"Unexpected Motor Client Error: {e}")
@@ -255,99 +275,126 @@ class SmartProxyCollection:
         self.coll_name = coll_name
         self.local_coll = LocalCollection(db_name, coll_name)
 
-    def _get_coll(self):
-        global use_local
+    def _get_atlas_coll(self):
         c = get_motor_client()
-        if use_local or c is None:
-            return self.local_coll
+        if c is None:
+            return None
         return c[self.db_name][self.coll_name]
 
     async def count_documents(self, filter_query: Dict[str, Any]) -> int:
-        global use_local
-        if use_local or client is None:
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.count_documents(filter_query)
         try:
-            return await self._get_coll().count_documents(filter_query)
+            return await atlas_coll.count_documents(filter_query)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas count_documents failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas count_documents failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.count_documents(filter_query)
 
     def find(self, filter_query: Dict[str, Any] = None):
-        global use_local
-        if use_local or client is None:
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return self.local_coll.find(filter_query)
         try:
-            return self._get_coll().find(filter_query)
+            return atlas_coll.find(filter_query)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas find failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas find failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return self.local_coll.find(filter_query)
 
     async def find_one(self, filter_query: Dict[str, Any]):
-        global use_local
-        if use_local or client is None:
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.find_one(filter_query)
         try:
-            return await self._get_coll().find_one(filter_query)
+            return await atlas_coll.find_one(filter_query)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas find_one failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas find_one failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.find_one(filter_query)
 
     async def insert_one(self, document: Dict[str, Any]):
-        global use_local
-        if use_local or client is None:
+        # Always write to local fallback first (dual-write) so data survives Atlas outages
+        try:
+            await self.local_coll.insert_one(dict(document))
+        except Exception as le:
+            logger.warning(f"[LOCAL WRITE] Local insert_one failed: {le}")
+
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.insert_one(document)
         try:
-            return await self._get_coll().insert_one(document)
+            return await atlas_coll.insert_one(document)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas insert_one failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas insert_one failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.insert_one(document)
 
     async def insert_many(self, documents: List[Dict[str, Any]]):
-        global use_local
-        if use_local or client is None:
+        # Dual-write: persist to local first
+        try:
+            await self.local_coll.insert_many([dict(d) for d in documents])
+        except Exception as le:
+            logger.warning(f"[LOCAL WRITE] Local insert_many failed: {le}")
+
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.insert_many(documents)
         try:
-            return await self._get_coll().insert_many(documents)
+            return await atlas_coll.insert_many(documents)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas insert_many failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas insert_many failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.insert_many(documents)
 
     async def update_one(self, filter_query: Dict[str, Any], update_cmd: Dict[str, Any], upsert: bool = False):
-        global use_local
-        if use_local or client is None:
+        # Dual-write: update local storage too
+        try:
+            await self.local_coll.update_one(filter_query, update_cmd, upsert=upsert)
+        except Exception as le:
+            logger.warning(f"[LOCAL WRITE] Local update_one failed: {le}")
+
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.update_one(filter_query, update_cmd, upsert=upsert)
         try:
-            return await self._get_coll().update_one(filter_query, update_cmd, upsert=upsert)
+            return await atlas_coll.update_one(filter_query, update_cmd, upsert=upsert)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas update_one failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas update_one failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.update_one(filter_query, update_cmd, upsert=upsert)
 
-    async def delete_one(self, filter_query: Dict[str, Any]):
-        global use_local
-        if use_local or client is None:
+    async def delete_one(self, filter_query: Dict[str, Any]) -> LocalDeleteResult:
+        try:
+            await self.local_coll.delete_one(filter_query)
+        except Exception as le:
+            logger.warning(f"[LOCAL WRITE] Local delete_one failed: {le}")
+
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.delete_one(filter_query)
         try:
-            return await self._get_coll().delete_one(filter_query)
+            return await atlas_coll.delete_one(filter_query)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas delete_one failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas delete_one failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.delete_one(filter_query)
 
-    async def delete_many(self, filter_query: Dict[str, Any]):
-        global use_local
-        if use_local or client is None:
+    async def delete_many(self, filter_query: Dict[str, Any]) -> LocalDeleteResult:
+        try:
+            await self.local_coll.delete_many(filter_query)
+        except Exception as le:
+            logger.warning(f"[LOCAL WRITE] Local delete_many failed: {le}")
+
+        atlas_coll = self._get_atlas_coll()
+        if atlas_coll is None:
             return await self.local_coll.delete_many(filter_query)
         try:
-            return await self._get_coll().delete_many(filter_query)
+            return await atlas_coll.delete_many(filter_query)
         except Exception as e:
-            logger.warning(f"[DB FALLBACK] Atlas delete_many failed ({e}), switching to local storage.")
-            use_local = True
+            logger.warning(f"[DB FALLBACK] Atlas delete_many failed ({e}), using local storage.")
+            _mark_atlas_failure()
             return await self.local_coll.delete_many(filter_query)
 
 class SmartProxyDatabase:

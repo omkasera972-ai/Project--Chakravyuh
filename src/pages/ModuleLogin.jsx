@@ -365,6 +365,18 @@ export const ModuleLogin = () => {
     }
 
     setIsLoading(true);
+    // Purge ALL previous session cache (previous user's data)
+    const purgeAllUserCache = () => {
+      const cacheKeys = [
+        'sda_cache_alerts', 'sda_cache_personnel', 'sda_cache_watchlist',
+        'sda_cache_vehicles', 'sda_cache_missing_children', 'sda_cache_inventory',
+        'sda_cache_officers', 'sda_cache_cameras',
+        'sda_personnel', 'sda_watchlist', 'sda_vehicles',
+        'sda_missing_children', 'sda_inventory', 'sda_alerts'
+      ];
+      cacheKeys.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    };
+    purgeAllUserCache();
     localStorage.removeItem('sda_token');
     localStorage.removeItem('sda_user');
     localStorage.removeItem('sda_auth');
@@ -445,6 +457,18 @@ export const ModuleLogin = () => {
     }
 
     setIsLoading(true);
+    // Purge ALL previous session cache (previous user's data)
+    const purgeAllUserCache = () => {
+      const cacheKeys = [
+        'sda_cache_alerts', 'sda_cache_personnel', 'sda_cache_watchlist',
+        'sda_cache_vehicles', 'sda_cache_missing_children', 'sda_cache_inventory',
+        'sda_cache_officers', 'sda_cache_cameras',
+        'sda_personnel', 'sda_watchlist', 'sda_vehicles',
+        'sda_missing_children', 'sda_inventory', 'sda_alerts'
+      ];
+      cacheKeys.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    };
+    purgeAllUserCache();
     localStorage.removeItem('sda_token');
     localStorage.removeItem('sda_user');
     localStorage.removeItem('sda_auth');
@@ -599,17 +623,21 @@ export const ModuleLogin = () => {
 
             {/* LOGIN FORM */}
             {activeTab === 'login' ? (
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-5" autoComplete="off">
                 
+                {/* Decoy hidden fields to trap browser password manager autofill */}
+                <input type="text" name="fake_user_id" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+                <input type="password" name="fake_pass_key" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+
                 {/* Username Input */}
                 <div>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
-                      name="username"
-                      id="username"
-                      autoComplete="username"
+                      name="chk_user_login_field"
+                      id="chk_user_login_field"
+                      autoComplete="one-time-code"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Username"
@@ -625,9 +653,9 @@ export const ModuleLogin = () => {
                     <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      name="password"
-                      id="password"
-                      autoComplete="current-password"
+                      name="chk_user_pass_field"
+                      id="chk_user_pass_field"
+                      autoComplete="one-time-code"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Password"

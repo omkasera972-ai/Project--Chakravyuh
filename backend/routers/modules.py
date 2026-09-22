@@ -21,21 +21,23 @@ router = APIRouter(prefix="/api", tags=["MongoDB Atlas Datasets"])
 @router.get("/initial-data")
 async def get_all_initial_module_data(authorization: Optional[str] = Header(None)):
     """
-    Ultra-Fast Single Batch Endpoint: Fetches all 5 module datasets + alerts in parallel
-    using asyncio.gather to reduce startup / page-refresh latency from 5000ms down to <100ms.
-    Returns empty arrays for unauthenticated sessions without throwing 401 error.
+    Strict Module Data Hydration Endpoint: Returns data ONLY for the authenticated session's module.
+    If token belongs to 'attendance', only personnel and attendance alerts are returned.
+    Cross-module datasets are returned as empty lists [].
     """
     admin_id = None
+    token_module = None
     if authorization:
         try:
-            from routers.auth import verify_admin_token
+            from routers.auth import verify_admin_token, normalize_module_name
             payload = verify_admin_token(authorization)
             if payload:
                 admin_id = payload.get("admin_id")
+                token_module = normalize_module_name(payload.get("moduleId"))
         except Exception:
             pass
 
-    if not admin_id:
+    if not token_module:
         return {
             "status": "success",
             "admin_id": None,
@@ -50,61 +52,60 @@ async def get_all_initial_module_data(authorization: Optional[str] = Header(None
         }
 
     try:
-        personnel_task = generic_get_all(db_attendance["registered_data"], admin_id=admin_id)
-        watchlist_task = generic_get_all(db_criminal["registered_data"], admin_id=admin_id)
-        vehicles_task = generic_get_all(db_anpr["registered_data"], admin_id=admin_id)
-        missing_task = generic_get_all(db_missing["registered_data"], admin_id=admin_id)
-        inventory_task = generic_get_all(db_defence["registered_data"], admin_id=admin_id)
-        
-        crim_alerts_task = generic_get_all(db_criminal["alerts"], admin_id=admin_id)
-        att_alerts_task = generic_get_all(db_attendance["alerts"], admin_id=admin_id)
-        anpr_alerts_task = generic_get_all(db_anpr["alerts"], admin_id=admin_id)
-        mc_alerts_task = generic_get_all(db_missing["alerts"], admin_id=admin_id)
-        def_alerts_task = generic_get_all(db_defence["alerts"], admin_id=admin_id)
+        personnel_data = []
+        watchlist_data = []
+        vehicles_data = []
+        missing_data = []
+        inventory_data = []
+        alerts_data = []
 
-        results = await asyncio.gather(
-            personnel_task,
-            watchlist_task,
-            vehicles_task,
-            missing_task,
-            inventory_task,
-            crim_alerts_task,
-            att_alerts_task,
-            anpr_alerts_task,
-            mc_alerts_task,
-            def_alerts_task,
-            return_exceptions=True
-        )
+        if token_module == "attendance":
+            res_p = await generic_get_all(db_attendance["registered_data"], admin_id=admin_id)
+            personnel_data = res_p.get("data", []) if isinstance(res_p, dict) else []
+            res_a = await generic_get_all(db_attendance["alerts"], admin_id=admin_id)
+            alerts_data = res_a.get("data", []) if isinstance(res_a, dict) else []
 
-        def extract_data(res):
-            if isinstance(res, dict) and res.get("status") == "success" and isinstance(res.get("data"), list):
-                return res["data"]
-            return []
+        elif token_module == "criminal":
+            res_w = await generic_get_all(db_criminal["registered_data"], admin_id=admin_id)
+            watchlist_data = res_w.get("data", []) if isinstance(res_w, dict) else []
+            res_a = await generic_get_all(db_criminal["alerts"], admin_id=admin_id)
+            alerts_data = res_a.get("data", []) if isinstance(res_a, dict) else []
 
-        personnel_data = extract_data(results[0])
-        watchlist_data = extract_data(results[1])
-        vehicles_data = extract_data(results[2])
-        missing_data = extract_data(results[3])
-        inventory_data = extract_data(results[4])
+        elif token_module == "anpr":
+            res_v = await generic_get_all(db_anpr["registered_data"], admin_id=admin_id)
+            vehicles_data = res_v.get("data", []) if isinstance(res_v, dict) else []
+            res_a = await generic_get_all(db_anpr["alerts"], admin_id=admin_id)
+            alerts_data = res_a.get("data", []) if isinstance(res_a, dict) else []
 
-        combined_alerts = []
-        for i in range(5, 10):
-            combined_alerts.extend(extract_data(results[i]))
+        elif token_module == "missing-children":
+            res_m = await generic_get_all(db_missing["registered_data"], admin_id=admin_id)
+            missing_data = res_m.get("data", []) if isinstance(res_m, dict) else []
+            res_a = await generic_get_all(db_missing["alerts"], admin_id=admin_id)
+            alerts_data = res_a.get("data", []) if isinstance(res_a, dict) else []
+
+        elif token_module == "defence":
+            res_i = await generic_get_all(db_defence["registered_data"], admin_id=admin_id)
+            inventory_data = res_i.get("data", []) if isinstance(res_i, dict) else []
+            res_a = await generic_get_all(db_defence["alerts"], admin_id=admin_id)
+            alerts_data = res_a.get("data", []) if isinstance(res_a, dict) else []
 
         return {
             "status": "success",
             "admin_id": admin_id,
+            "moduleId": token_module,
             "data": {
                 "personnel": personnel_data,
                 "watchlist": watchlist_data,
                 "vehicles": vehicles_data,
                 "missingChildren": missing_data,
                 "inventory": inventory_data,
-                "alerts": combined_alerts
+                "alerts": alerts_data
             }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch initial module data: {str(e)}")
+
+
 
 # Single Source of Truth: Server-Side Time Generator (Asia/Kolkata IST & ISO-8601 UTC)
 IST_TZ = timezone(timedelta(hours=5, minutes=30))
@@ -191,8 +192,9 @@ async def get_system_summary(authorization: Optional[str] = Header(None)):
 
 # --- 2. ATTENDANCE MODULE DATABASE (`chakravyuh_attendance`) ---
 @router.get("/attendance/personnel")
-async def get_all_personnel(admin_id: str = Depends(get_authenticated_admin_id)):
+async def get_all_personnel(authorization: Optional[str] = Header(None)):
     """Fetch all personnel and attendance records from MongoDB Atlas"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="attendance")
     try:
         cursor = db_attendance["registered_data"].find({"admin_id": admin_id})
         docs = await cursor.to_list(length=500)
@@ -201,8 +203,9 @@ async def get_all_personnel(admin_id: str = Depends(get_authenticated_admin_id))
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/attendance/personnel")
-async def add_personnel_api(payload: Dict[str, Any] = Body(...), admin_id: str = Depends(get_authenticated_admin_id)):
+async def add_personnel_api(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(None)):
     """Add or register new student / personnel record directly into MongoDB Atlas"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="attendance")
     emp_id = payload.get("id")
     if not emp_id:
         raise HTTPException(status_code=400, detail="Missing person ID")
@@ -233,8 +236,9 @@ async def add_personnel_api(payload: Dict[str, Any] = Body(...), admin_id: str =
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/attendance/personnel/{person_id}")
-async def delete_personnel_api(person_id: str, admin_id: str = Depends(get_authenticated_admin_id)):
+async def delete_personnel_api(person_id: str, authorization: Optional[str] = Header(None)):
     """Delete a personnel record permanently from MongoDB Atlas (`chakravyuh_attendance`)"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="attendance")
     try:
         res = await db_attendance["registered_data"].delete_many({"id": str(person_id), "admin_id": admin_id})
         return {"status": "success", "deleted_count": res.deleted_count, "id": person_id}
@@ -242,8 +246,9 @@ async def delete_personnel_api(person_id: str, admin_id: str = Depends(get_authe
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/attendance/personnel/delete-batch")
-async def delete_batch_personnel_api(payload: Dict[str, Any] = Body(...), admin_id: str = Depends(get_authenticated_admin_id)):
+async def delete_batch_personnel_api(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(None)):
     """Delete multiple personnel records permanently from MongoDB Atlas"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="attendance")
     ids = payload.get("ids", [])
     if not ids:
         return {"status": "success", "deleted_count": 0}
@@ -265,8 +270,9 @@ async def mark_attendance_api(payload: AttendanceMarkRequest):
 
 # --- 3. ANPR MODULE DATABASE (`chakravyuh_anpr`) ---
 @router.get("/anpr/vehicles")
-async def get_all_vehicles(admin_id: str = Depends(get_authenticated_admin_id)):
+async def get_all_vehicles(authorization: Optional[str] = Header(None)):
     """Fetch vehicle registrations from `chakravyuh_anpr`"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="anpr")
     try:
         cursor = db_anpr["registered_data"].find({"admin_id": admin_id})
         docs = await cursor.to_list(length=500)
@@ -276,13 +282,15 @@ async def get_all_vehicles(admin_id: str = Depends(get_authenticated_admin_id)):
 
 # --- 4. CRIMINAL TRACKING DATABASE (`chakravyuh_criminal`) ---
 @router.get("/criminal/watchlist")
-async def get_watchlist(admin_id: str = Depends(get_authenticated_admin_id)):
+async def get_watchlist(authorization: Optional[str] = Header(None)):
     """Fetch criminal watchlist from `chakravyuh_criminal` (registered_data)"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="criminal")
     return await generic_get_all(db_criminal["registered_data"], admin_id=admin_id)
 
 @router.post("/criminal/watchlist")
-async def add_criminal_to_watchlist(payload: Dict[str, Any] = Body(...), admin_id: str = Depends(get_authenticated_admin_id)):
+async def add_criminal_to_watchlist(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(None)):
     """Add a new criminal suspect record directly into MongoDB Atlas `chakravyuh_criminal`"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="criminal")
     target_id = payload.get("id") or f"W-{int(datetime.now().timestamp())}"
     server_time = get_server_time()
     try:
@@ -314,8 +322,9 @@ async def add_criminal_to_watchlist(payload: Dict[str, Any] = Body(...), admin_i
 # --- 5. MISSING CHILD DATABASE (`chakravyuh_missing_child`) ---
 @router.get("/missing-child/records")
 @router.get("/missing-children/records")
-async def get_missing_children(admin_id: str = Depends(get_authenticated_admin_id)):
+async def get_missing_children(authorization: Optional[str] = Header(None)):
     """Fetch missing children cases from `chakravyuh_missing_child`"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="missing-children")
     try:
         cursor = db_missing["registered_data"].find({"admin_id": admin_id})
         docs = await cursor.to_list(length=500)
@@ -325,8 +334,9 @@ async def get_missing_children(admin_id: str = Depends(get_authenticated_admin_i
 
 # --- 6. DEFENCE DATABASE (`chakravyuh_defence`) ---
 @router.get("/defence/inventory")
-async def get_defence_inventory(admin_id: str = Depends(get_authenticated_admin_id)):
+async def get_defence_inventory(authorization: Optional[str] = Header(None)):
     """Fetch armory inventory from `chakravyuh_defence`"""
+    admin_id = get_authenticated_admin_id(authorization, required_module="defence")
     try:
         cursor = db_defence["registered_data"].find({"admin_id": admin_id})
         docs = await cursor.to_list(length=500)

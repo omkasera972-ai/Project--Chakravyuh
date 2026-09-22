@@ -28,20 +28,24 @@ import {
 } from '../components/common/CardBackgroundIcons';
 
 export const Alerts = () => {
-  const { activeModule, alerts, watchlist = [], acknowledgeAlert, resolveAlert, deleteAlert, deleteMultipleAlerts, clearAllAlerts, setActiveModal } = useApp();
+  const { activeModule, alerts = [], personnel = [], cameras = [], watchlist = [], acknowledgeAlert, resolveAlert, deleteAlert, deleteMultipleAlerts, clearAllAlerts, setActiveModal } = useApp();
   const { moduleId } = useParams();
   const [priorityFilter, setPriorityFilter] = useState('All');
-  const [sortMode, setSortMode] = useState('condition'); // 'condition' | 'latest'
+  const [sortMode, setSortMode] = useState('latest');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAlertDetail, setSelectedAlertDetail] = useState(null);
 
   const currentModule = moduleId || activeModule || 'criminal-tracking';
+  const isAttendanceModule = currentModule === 'attendance';
 
   // Checkbox selection state for bulk deletion
   const [selectedAlertIds, setSelectedAlertIds] = useState([]);
 
   // Helper to get effective priority (elevates to Critical if suspect is registered as Critical Risk)
   const getEffectivePriority = (alert) => {
+    if (isAttendanceModule || alert.module === 'attendance' || alert.priority === 'Verified') {
+      return 'Verified';
+    }
     const p = String(alert.priority || '').toLowerCase();
     if (p.includes('critical')) return 'Critical';
     const alertTxt = `${alert.title || ''} ${alert.description || ''}`.toLowerCase();
@@ -54,51 +58,91 @@ export const Alerts = () => {
     return alert.priority || 'High';
   };
 
-  // Filter alerts STRICTLY by active module (100% Data & Alert Isolation)
-  const moduleAlerts = (alerts || []).filter(a => {
-    const title = (a.title || '').toLowerCase();
-    const type = (a.type || '').toLowerCase();
-    const desc = (a.description || '').toLowerCase();
-    const text = `${title} ${type} ${desc}`;
+  // Filter & synthesize alerts STRICTLY by active module (100% Data & Alert Isolation)
+  const moduleAlerts = React.useMemo(() => {
+    if (isAttendanceModule) {
+      const rawAttendanceAlerts = (alerts || []).filter(a => {
+        const title = (a.title || '').toLowerCase();
+        const type = (a.type || '').toLowerCase();
+        const desc = (a.description || '').toLowerCase();
+        const text = `${title} ${type} ${desc}`;
+        return a.module === 'attendance' || text.includes('attendance') || a.priority === 'Verified';
+      });
 
-    // 1. Criminal Watchlist & Suspect alerts ALWAYS route to criminal-tracking
-    if (text.includes('watchlist') || text.includes('criminal') || text.includes('suspect') || text.includes('fugitive') || text.includes('ipc')) {
+      const alertStudentIds = new Set(
+        rawAttendanceAlerts.map(a => {
+          const match = (a.description || '').match(/\(ID:\s*([^)]+)\)/i);
+          return match ? match[1].trim() : null;
+        }).filter(Boolean)
+      );
+
+      const presentPersons = (personnel || []).filter(p => p.status === 'Present' || p.todayStatus === 'Present' || p.entry !== '--');
+
+      const synthesizedAlerts = presentPersons
+        .filter(p => !alertStudentIds.has(p.id))
+        .map(p => {
+          const entryTime = p.entryTime || p.entry || 'Today';
+          const camId = p.camera || 'CAM-01';
+          const camLoc = p.location || 'Main Gate Terminal';
+          return {
+            id: `ALT-ATTE-${p.id}`,
+            module: 'attendance',
+            type: 'Biometric Attendance Verified',
+            title: `ATTENDANCE RECORDED: ${p.name}`,
+            location: `${camLoc} / ${camId}`,
+            camera: camId,
+            priority: 'Verified',
+            description: `Student ${p.name} (ID: ${p.id}) attendance marked as Present at ${entryTime}.`,
+            status: 'Active',
+            timestamp: p.lastMarkedAt ? new Date(p.lastMarkedAt).toISOString() : new Date().toISOString(),
+            timeAgo: 'Recently Verified',
+            icon: 'CheckCircle2'
+          };
+        });
+
+      return [...rawAttendanceAlerts, ...synthesizedAlerts].map(a => {
+        const rawTitle = a.title || '';
+        const nameMatch = rawTitle.replace(/^ATTENDANCE (RECORDED|MARKED):\s*/i, '');
+        return {
+          ...a,
+          title: rawTitle.startsWith('ATTENDANCE RECORDED:') ? rawTitle : `ATTENDANCE RECORDED: ${nameMatch || 'Member'}`,
+          priority: 'Verified',
+          icon: 'CheckCircle2'
+        };
+      });
+    }
+
+    return (alerts || []).filter(a => {
+      const title = (a.title || '').toLowerCase();
+      const type = (a.type || '').toLowerCase();
+      const desc = (a.description || '').toLowerCase();
+      const text = `${title} ${type} ${desc}`;
+
+      if (text.includes('watchlist') || text.includes('criminal') || text.includes('suspect') || text.includes('fugitive') || text.includes('ipc')) {
+        return currentModule === 'criminal-tracking';
+      }
+      if (text.includes('missing') || text.includes('child') || text.includes('case mc-')) {
+        return currentModule === 'missing-child';
+      }
+      if (text.includes('anpr') || text.includes('speed') || text.includes('vehicle') || text.includes('challan') || a.icon === 'Car') {
+        return currentModule === 'anpr';
+      }
+      if (text.includes('breach') || text.includes('armory') || text.includes('vault') || text.includes('perimeter') || text.includes('defence') || text.includes('defense') || a.icon === 'Shield') {
+        return currentModule === 'defence';
+      }
+      if (a.module) {
+        return a.module === currentModule;
+      }
       return currentModule === 'criminal-tracking';
-    }
-
-    // 2. Missing Child alerts ALWAYS route to missing-child
-    if (text.includes('missing') || text.includes('child') || text.includes('case mc-')) {
-      return currentModule === 'missing-child';
-    }
-
-    // 3. ANPR alerts ALWAYS route to anpr
-    if (text.includes('anpr') || text.includes('speed') || text.includes('vehicle') || text.includes('challan') || a.icon === 'Car') {
-      return currentModule === 'anpr';
-    }
-
-    // 4. Defence alerts ALWAYS route to defence
-    if (text.includes('breach') || text.includes('armory') || text.includes('vault') || text.includes('perimeter') || text.includes('defence') || text.includes('defense') || a.icon === 'Shield') {
-      return currentModule === 'defence';
-    }
-
-    // 5. Attendance alerts ALWAYS route to attendance
-    if (text.includes('attendance') || a.icon === 'UserCheck') {
-      return currentModule === 'attendance';
-    }
-
-    // 6. Fallback to explicit module tag
-    if (a.module) {
-      return a.module === currentModule;
-    }
-
-    return currentModule === 'criminal-tracking';
-  });
+    });
+  }, [alerts, personnel, currentModule, isAttendanceModule]);
 
   // Condition-based Ranking Score Calculator
   const getConditionScore = (alert) => {
     let score = 0;
     const effP = getEffectivePriority(alert);
-    if (effP === 'Critical') score += 100;
+    if (effP === 'Verified') score += 90;
+    else if (effP === 'Critical') score += 100;
     else if (effP === 'High') score += 75;
     else if (effP === 'Medium') score += 50;
     else score += 25;
@@ -107,18 +151,12 @@ export const Alerts = () => {
     else if (alert.status === 'Acknowledged') score += 20;
     else score += 0;
 
-    const alertType = String(alert.type || alert.category || '').toLowerCase();
-    if (alertType.includes('watchlist') || alertType.includes('intercept') || alertType.includes('criminal')) score += 30;
-    else if (alertType.includes('anpr') || alertType.includes('missing')) score += 20;
-    else if (alertType.includes('breach')) score += 15;
-
-    if (alert.timeAgo?.includes('Just now') || alert.timeAgo?.includes('s ago') || alert.timeAgo?.includes('m ago')) score += 15;
-
     return score;
   };
 
-  const criticalCount = moduleAlerts.filter(a => getEffectivePriority(a) === 'Critical' && a.status !== 'Resolved').length;
-  const highCount = moduleAlerts.filter(a => getEffectivePriority(a) === 'High' && a.status !== 'Resolved').length;
+  const criticalCount = isAttendanceModule ? 0 : moduleAlerts.filter(a => getEffectivePriority(a) === 'Critical' && a.status !== 'Resolved').length;
+  const highCount = isAttendanceModule ? 0 : moduleAlerts.filter(a => getEffectivePriority(a) === 'High' && a.status !== 'Resolved').length;
+  const verifiedCount = isAttendanceModule ? moduleAlerts.filter(a => a.priority === 'Verified').length : 0;
   const resolvedCount = moduleAlerts.filter(a => a.status === 'Resolved').length;
   const totalActive = moduleAlerts.filter(a => a.status !== 'Resolved').length;
 
@@ -133,7 +171,10 @@ export const Alerts = () => {
 
       const effP = getEffectivePriority(a);
       const matchesPriority = priorityFilter === 'All' || 
-                             (priorityFilter === 'Resolved' ? a.status === 'Resolved' : effP === priorityFilter);
+                             (priorityFilter === 'Resolved' ? a.status === 'Resolved' : 
+                              priorityFilter === 'Verified' ? (effP === 'Verified' || a.priority === 'Verified') :
+                              priorityFilter === 'Active' ? a.status === 'Active' :
+                              effP === priorityFilter);
       
       return matchesSearch && matchesPriority;
     })
@@ -191,10 +232,13 @@ export const Alerts = () => {
     if (typeStr.includes('anpr') || typeStr.includes('vehicle')) return <Car className="w-5 h-5 text-amber-500" />;
     if (typeStr.includes('watchlist') || typeStr.includes('match') || typeStr.includes('criminal')) return <ScanFace className="w-5 h-5 text-red-500" />;
     if (typeStr.includes('missing') || typeStr.includes('child')) return <User className="w-5 h-5 text-purple-500" />;
+    if (isAttendanceModule || typeStr.includes('attendance') || typeStr.includes('verified') || iconName === 'CheckCircle2' || iconName === 'UserCheck') return <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
     return <AlertTriangle className="w-5 h-5 text-red-500" />;
   };
 
-  const getAlertStyle = (priority, status) => {
+  const getAlertStyle = (priority, status, type) => {
+    const pStr = String(priority || '').toLowerCase();
+    const typeStr = String(type || '').toLowerCase();
     if (status === 'Resolved') {
       return {
         bg: 'bg-[#f8f9fa] dark:bg-[#12141c] border-gray-200 dark:border-gray-800/80 opacity-75',
@@ -204,7 +248,16 @@ export const Alerts = () => {
         btnBg: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
       };
     }
-    if (priority === 'Critical' || priority === 'Critical Risk' || priority === 'CRITICAL' || String(priority).toLowerCase().includes('critical')) {
+    if (isAttendanceModule || pStr.includes('verified') || typeStr.includes('attendance') || pStr.includes('success')) {
+      return {
+        bg: 'bg-emerald-50/70 dark:bg-[#121c17] border-emerald-300 dark:border-emerald-900/60 shadow-xs',
+        iconBg: 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400',
+        locationColor: 'text-emerald-700 dark:text-emerald-400 font-bold',
+        badgeBg: 'bg-emerald-600 text-white font-extrabold',
+        btnBg: 'bg-emerald-600 hover:bg-emerald-700 text-white font-semibold'
+      };
+    }
+    if (pStr.includes('critical')) {
       return {
         bg: 'bg-red-50/50 dark:bg-[#1c1215] border-red-200 dark:border-red-900/60',
         iconBg: 'bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400',
@@ -213,7 +266,7 @@ export const Alerts = () => {
         btnBg: 'bg-red-600 hover:bg-red-700 text-white'
       };
     }
-    if (priority === 'High' || priority === 'High Risk' || priority === 'HIGH' || String(priority).toLowerCase().includes('high')) {
+    if (pStr.includes('high')) {
       return {
         bg: 'bg-amber-50/50 dark:bg-[#1c1812] border-amber-200 dark:border-amber-900/60',
         iconBg: 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400',
@@ -223,11 +276,11 @@ export const Alerts = () => {
       };
     }
     return {
-      bg: 'bg-gray-50 dark:bg-[#141720] border-gray-200 dark:border-gray-800',
-      iconBg: 'bg-gray-800 text-white',
-      locationColor: 'text-gray-700 dark:text-gray-300',
-      badgeBg: 'bg-gray-800 text-white',
-      btnBg: 'bg-gray-900 hover:bg-black text-white'
+      bg: 'bg-emerald-50/50 dark:bg-[#141d18] border-emerald-200 dark:border-emerald-900/40',
+      iconBg: 'bg-emerald-700 text-white',
+      locationColor: 'text-emerald-800 dark:text-emerald-300',
+      badgeBg: 'bg-emerald-700 text-white',
+      btnBg: 'bg-emerald-800 hover:bg-emerald-900 text-white'
     };
   };
 
@@ -239,72 +292,130 @@ export const Alerts = () => {
       <div className="bg-[#111318] text-white p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md border border-[#21252f]">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white">
-            Security Incident & Alert Center
+            {isAttendanceModule ? 'Biometric Attendance Event Log Center' : 'Security Incident & Alert Center'}
           </h1>
           <p className="text-xs text-gray-400 mt-1">
-            Real-time threat triage, perimeter alarm acknowledgements & dispatch log
+            {isAttendanceModule
+              ? 'Real-time contactless attendance verification logs, terminal acknowledgements & roster telemetry'
+              : 'Real-time threat triage, perimeter alarm acknowledgements & dispatch log'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveModal('addAlert')}
-            className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-white text-gray-950 font-bold hover:bg-gray-100 transition-all text-xs shadow-sm"
-          >
-            <Plus className="w-4 h-4 text-gray-950 stroke-[2.5]" />
-            <span>Dispatch Custom Alert</span>
-          </button>
-        </div>
+        {!isAttendanceModule && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveModal('addAlert')}
+              className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-white text-gray-950 font-bold hover:bg-gray-100 transition-all text-xs shadow-sm"
+            >
+              <Plus className="w-4 h-4 text-gray-950 stroke-[2.5]" />
+              <span>Dispatch Custom Alert</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Metric Cards Top Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
-          <div className="relative z-10">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Active Alerts</span>
-            <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{totalActive}</div>
-            <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Pending Triage</span>
-          </div>
-          <div className="relative z-10 w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/70 border border-red-200 dark:border-red-800 flex items-center justify-center text-red-500">
-            <Bell className="w-6 h-6 stroke-[2]" />
-          </div>
-          <AlertBgSvg className="w-12 h-12 text-red-500" />
-        </div>
+        {isAttendanceModule ? (
+          <>
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Total Attendance Events</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{moduleAlerts.length}</div>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 block font-medium">Logged Scans</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-6 h-6 stroke-[2]" />
+              </div>
+              <ReportBgSvg className="w-12 h-12 text-emerald-500" />
+            </div>
 
-        <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
-          <div className="relative z-10">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Critical Incidents</span>
-            <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{criticalCount}</div>
-            <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Immediate Red Priority</span>
-          </div>
-          <div className="relative z-10 w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center justify-center text-red-500">
-            <AlertTriangle className="w-6 h-6 stroke-[2]" />
-          </div>
-          <AlertBgSvg className="w-12 h-12 text-red-600" />
-        </div>
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Verified Check-ins</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{verifiedCount}</div>
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 block font-medium">Face Recognition Verified</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-6 h-6 stroke-[2]" />
+              </div>
+              <ReportBgSvg className="w-12 h-12 text-emerald-600" />
+            </div>
 
-        <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
-          <div className="relative z-10">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">High Priority</span>
-            <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{highCount}</div>
-            <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Active Response</span>
-          </div>
-          <div className="relative z-10 w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 flex items-center justify-center text-amber-500">
-            <Shield className="w-6 h-6 stroke-[2]" />
-          </div>
-          <ShieldBgSvg className="w-12 h-12 text-amber-500" />
-        </div>
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Active Log Items</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{totalActive}</div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Active Roster Events</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 flex items-center justify-center text-blue-500">
+                <Bell className="w-6 h-6 stroke-[2]" />
+              </div>
+              <AlertBgSvg className="w-12 h-12 text-blue-500" />
+            </div>
 
-        <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
-          <div className="relative z-10">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Resolved Today</span>
-            <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{resolvedCount}</div>
-            <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Closed Cases</span>
-          </div>
-          <div className="relative z-10 w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-500">
-            <CheckCircle2 className="w-6 h-6 stroke-[2]" />
-          </div>
-          <ReportBgSvg className="w-12 h-12 text-emerald-500" />
-        </div>
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Resolved / Archived</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{resolvedCount}</div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Completed Logs</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500">
+                <CheckCircle2 className="w-6 h-6 stroke-[2]" />
+              </div>
+              <ReportBgSvg className="w-12 h-12 text-slate-500" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Active Alerts</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{totalActive}</div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Pending Triage</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/70 border border-red-200 dark:border-red-800 flex items-center justify-center text-red-500">
+                <Bell className="w-6 h-6 stroke-[2]" />
+              </div>
+              <AlertBgSvg className="w-12 h-12 text-red-500" />
+            </div>
+
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Critical Incidents</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{criticalCount}</div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Immediate Red Priority</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center justify-center text-red-500">
+                <AlertTriangle className="w-6 h-6 stroke-[2]" />
+              </div>
+              <AlertBgSvg className="w-12 h-12 text-red-600" />
+            </div>
+
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">High Priority</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{highCount}</div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Active Response</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 flex items-center justify-center text-amber-500">
+                <Shield className="w-6 h-6 stroke-[2]" />
+              </div>
+              <ShieldBgSvg className="w-12 h-12 text-amber-500" />
+            </div>
+
+            <div className="relative overflow-hidden bg-white dark:bg-[#13161f] border border-gray-200 dark:border-gray-800 p-4 rounded-2xl flex items-center justify-between shadow-2xs group">
+              <div className="relative z-10">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">Resolved Today</span>
+                <div className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">{resolvedCount}</div>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 block font-medium">Closed Cases</span>
+              </div>
+              <div className="relative z-10 w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-500">
+                <CheckCircle2 className="w-6 h-6 stroke-[2]" />
+              </div>
+              <ReportBgSvg className="w-12 h-12 text-emerald-500" />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Select All & Bulk Action Bar */}
@@ -336,7 +447,7 @@ export const Alerts = () => {
             </button>
           )}
 
-          {alerts.length > 0 && (
+          {moduleAlerts.length > 0 && (
             <button
               onClick={handleClearAll}
               className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-red-950 text-slate-300 hover:text-red-200 border border-slate-700 text-xs font-semibold transition-all"
@@ -350,13 +461,18 @@ export const Alerts = () => {
       {/* Filter Tabs & Sorting Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="flex items-center space-x-2 overflow-x-auto pb-1">
-          {[
+          {(isAttendanceModule ? [
+            { label: 'All', count: moduleAlerts.length },
+            { label: 'Verified', count: verifiedCount },
+            { label: 'Active', count: totalActive },
+            { label: 'Resolved', count: resolvedCount }
+          ] : [
             { label: 'All', count: moduleAlerts.length },
             { label: 'Critical', count: criticalCount },
             { label: 'High', count: highCount },
             { label: 'Medium', count: moduleAlerts.filter(a => a.priority === 'Medium' && a.status !== 'Resolved').length },
             { label: 'Resolved', count: resolvedCount }
-          ].map(tab => (
+          ]).map(tab => (
             <button
               key={tab.label}
               onClick={() => setPriorityFilter(tab.label)}
@@ -382,33 +498,6 @@ export const Alerts = () => {
               className="pl-8 pr-3 py-1.5 bg-white dark:bg-[#161922] border border-gray-200 dark:border-gray-800 rounded-xl text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500"
             />
           </div>
-
-          <div className="flex items-center space-x-1.5 bg-white dark:bg-[#161922] p-1 rounded-xl border border-gray-200 dark:border-gray-800 text-xs">
-            <span className="text-gray-500 dark:text-gray-400 pl-2 font-bold flex items-center space-x-1">
-              <Filter className="w-3.5 h-3.5 text-gray-400" />
-              <span>Sort:</span>
-            </span>
-            <button
-              onClick={() => setSortMode('latest')}
-              className={`px-3 py-1 rounded-lg transition-all font-semibold ${
-                sortMode === 'latest'
-                  ? 'bg-indigo-600 text-white font-bold shadow-2xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              ⚡ Most Recent
-            </button>
-            <button
-              onClick={() => setSortMode('condition')}
-              className={`px-3 py-1 rounded-lg transition-all font-semibold ${
-                sortMode === 'condition'
-                  ? 'bg-indigo-600 text-white font-bold shadow-2xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              Condition Ranking
-            </button>
-          </div>
         </div>
       </div>
 
@@ -416,16 +505,26 @@ export const Alerts = () => {
       <div className="space-y-3">
         {filteredAlerts.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-[#121419] rounded-2xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 space-y-2">
-            <Bell className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600" />
-            <p className="text-sm font-bold text-gray-700 dark:text-gray-300">No Alerts Found</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">All alerts resolved or filter returns zero results.</p>
+            {isAttendanceModule ? (
+              <>
+                <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500 dark:text-emerald-400" />
+                <p className="text-base font-bold text-slate-800 dark:text-slate-200">No recent attendance activity</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Stand in front of an active camera terminal to record attendance.</p>
+              </>
+            ) : (
+              <>
+                <Bell className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600" />
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">No Alerts Found</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">All alerts resolved or filter returns zero results.</p>
+              </>
+            )}
           </div>
         ) : (
           filteredAlerts.map((alert) => {
             const targetId = alert.id || alert._id;
             const effPriority = getEffectivePriority(alert);
             const score = getConditionScore(alert);
-            const style = getAlertStyle(effPriority, alert.status);
+            const style = getAlertStyle(effPriority, alert.status, alert.type);
             const isChecked = selectedAlertIds.includes(targetId);
 
             return (
@@ -485,25 +584,6 @@ export const Alerts = () => {
                   >
                     View Details
                   </button>
-
-                  {alert.status !== 'Resolved' && (
-                    <>
-                      {alert.status !== 'Acknowledged' && (
-                        <button
-                          onClick={() => acknowledgeAlert(targetId)}
-                          className="px-3.5 py-2 rounded-xl bg-blue-100 dark:bg-blue-950 hover:bg-blue-200 text-blue-800 dark:text-blue-300 font-bold text-xs transition-colors"
-                        >
-                          Acknowledge
-                        </button>
-                      )}
-                      <button
-                        onClick={() => resolveAlert(targetId)}
-                        className="px-3.5 py-2 rounded-xl border border-blue-400 dark:border-blue-600 bg-white dark:bg-transparent hover:bg-blue-50 dark:hover:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-xs transition-colors"
-                      >
-                        Resolve Case
-                      </button>
-                    </>
-                  )}
 
                   <button
                     onClick={() => {

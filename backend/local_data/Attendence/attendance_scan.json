@@ -178,5 +178,53 @@
     "timestamp": "2026-09-12T20:28:30Z",
     "created_at": "13 Sep 2026, 01:58:30 AM IST",
     "accepted": true
+  },
+  {
+    "admin_id": "ADM-ATTE-yuvraj-fa281a",
+    "id": "SCAN-Faculty101-1790055109",
+    "person_id": "Faculty101",
+    "personId": "Faculty101",
+    "name": "Anees sir",
+    "role": "Faculty / Teacher",
+    "department": "BCA",
+    "status": "Present",
+    "date": "2026-09-22",
+    "timestamp_num": 1790055109.78698,
+    "timestamp": "2026-09-22T05:31:49Z",
+    "created_at": "22 Sep 2026, 11:01:49 AM IST",
+    "accepted": true,
+    "_id": "SCAN-Faculty101-1790055109"
+  },
+  {
+    "admin_id": "ADM-ATTE-yuvraj-fa281a",
+    "id": "SCAN-Student101-1790055264",
+    "person_id": "Student101",
+    "personId": "Student101",
+    "name": "Yuvraj pati",
+    "role": "Student",
+    "department": "BCA",
+    "status": "Present",
+    "date": "2026-09-22",
+    "timestamp_num": 1790055264.157043,
+    "timestamp": "2026-09-22T05:34:24Z",
+    "created_at": "22 Sep 2026, 11:04:24 AM IST",
+    "accepted": true,
+    "_id": "SCAN-Student101-1790055264"
+  },
+  {
+    "admin_id": "ADM-ATTE-john-5a8e5d",
+    "id": "SCAN-101-1790060922",
+    "person_id": "101",
+    "personId": "101",
+    "name": "Anees",
+    "role": "Student",
+    "department": "Computer Science",
+    "status": "Present",
+    "date": "2026-09-22",
+    "timestamp_num": 1790060922.060836,
+    "timestamp": "2026-09-22T07:08:42Z",
+    "created_at": "22 Sep 2026, 12:38:42 PM IST",
+    "accepted": true,
+    "_id": "SCAN-101-1790060922"
   }
 ]

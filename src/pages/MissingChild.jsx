@@ -10,7 +10,6 @@ import {
   Play,
   MapPin,
   CheckCircle2,
-  Shield,
   Heart,
   Radio,
   Camera,
@@ -21,12 +20,11 @@ import {
   Send,
   Volume2,
   FileText,
-  Cpu,
   Trash2,
   Filter
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { StatCard } from '../components/StatCard';
+import { getApiBaseUrl } from '../utils/dateUtils';
 import { useNavigate } from 'react-router-dom';
 
 let modelsLoaded = false;
@@ -119,7 +117,7 @@ const compressImageFile = (file) => {
 };
 
 export const MissingChild = () => {
-  const { missingChildren = [], cameras = [], addMissingChild, deleteMissingChild, addAlert, addDetectionReport, showToast } = useApp();
+  const { missingChildren = [], cameras = [], addMissingChild, deleteMissingChild, addAlert, addDetectionReport, showToast, authFetch } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, SEARCHING, LOCATED
   const [isCreatingCase, setIsCreatingCase] = useState(false);
@@ -473,6 +471,46 @@ export const MissingChild = () => {
     });
 
     addDetectionReport(child, confidence, locationName);
+
+    // Dispatch officer email alert via backend (non-blocking, fire-and-forget)
+    const dispatchOfficerEmail = async () => {
+      try {
+        const apiBase = getApiBaseUrl();
+        const res = await authFetch(`${apiBase}/api/missing-children/dispatch-alert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            child_id: child.id,
+            child_name: child.name,
+            name: child.name,
+            age: child.age,
+            description: child.description,
+            lastSeenLocation: locationName,
+            location: locationName,
+            photo_url: child.photoUrl || child.photo_url || child.photo || '',
+            camera_id: 'CAM-LIVE-WEBCAM-01',
+            cam_id: 'CAM-LIVE-WEBCAM-01',
+            confidence: String(confidence),
+            match_confidence: String(confidence)
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(
+            '📧 Officer Alert Sent',
+            `Rescue alert dispatched to ${data.successful_emails || 0} officer(s) — ${data.nearest_station?.police_station_name || 'Police Station'}`,
+            'success'
+          );
+        } else if (data.status === 'suppressed') {
+          console.info('[Missing Child Dispatch] Cooldown active:', data.message);
+        } else {
+          console.warn('[Missing Child Dispatch] Alert issue:', data);
+        }
+      } catch (err) {
+        console.error('[Missing Child Dispatch] Failed to send officer email alert:', err);
+      }
+    };
+    dispatchOfficerEmail();
   };
 
   const downloadRescuePDF = (child, confidence) => {
@@ -619,34 +657,49 @@ export const MissingChild = () => {
         </div>
       </div>
 
-      {/* KPI Stats Row (100% Dynamic Real Operational Data) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard
-          title="Active Search Cases"
-          value={String((missingChildren || []).filter(c => c && (c.status || 'Searching') === 'Searching').length)}
-          subtext="Active AI Sweeps"
-          icon={Search}
-        />
-        <StatCard
-          title="Children Located"
-          value={String((missingChildren || []).filter(c => c && String(c.status || '').includes('Located')).length)}
-          subtext="Rescued & Secured"
-          icon={UserCheck}
-          indicatorDot="green"
-        />
-        <StatCard
-          title="Active Camera Feeds"
-          value={`${(cameras || []).filter(c => c.status !== 'OFFLINE' && c.status !== 'Offline').length} Nodes`}
-          subtext="Live CCTV Network Grid"
-          icon={Shield}
-        />
-        <StatCard
-          title="AI Biometric Engine"
-          value="ResNet-34"
-          subtext="128D Vector Embeddings"
-          icon={Cpu}
-        />
+      {/* Case Status Summary Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Found & Recovered */}
+        <div className="flex items-center gap-3 bg-emerald-950/60 border border-emerald-500/30 rounded-2xl px-5 py-4 shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-emerald-400">
+              {String((missingChildren || []).filter(c => c && String(c.status || '').includes('Located')).length)}
+            </p>
+            <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Children Found & Recovered</p>
+            <p className="text-[10px] text-emerald-600 font-medium mt-0.5">Successfully located via AI sweep</p>
+          </div>
+        </div>
+
+        {/* Active Search */}
+        <div className="flex items-center gap-3 bg-purple-950/50 border border-purple-500/25 rounded-2xl px-5 py-4 shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center flex-shrink-0">
+            <Search className="w-5 h-5 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-purple-300">
+              {String((missingChildren || []).filter(c => c && (c.status || 'Searching') === 'Searching').length)}
+            </p>
+            <p className="text-xs font-bold text-purple-300 uppercase tracking-wide">Active Search Cases</p>
+            <p className="text-[10px] text-purple-500 font-medium mt-0.5">Live facial scan in progress</p>
+          </div>
+        </div>
+
+        {/* Total Registered */}
+        <div className="flex items-center gap-3 bg-slate-900/70 border border-slate-700/50 rounded-2xl px-5 py-4 shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-slate-700/50 border border-slate-600/40 flex items-center justify-center flex-shrink-0">
+            <UserCheck className="w-5 h-5 text-slate-300" />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-white">{String((missingChildren || []).length)}</p>
+            <p className="text-xs font-bold text-slate-300 uppercase tracking-wide">Total Registered Cases</p>
+            <p className="text-[10px] text-slate-500 font-medium mt-0.5">All cases in database</p>
+          </div>
+        </div>
       </div>
+
 
       {/* Main Grid: Live Camera Mesh Sweep (Left) & Active Cases List (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
