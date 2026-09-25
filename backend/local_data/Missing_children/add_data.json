@@ -108,5 +108,20 @@
     "updated_at": "21 Sep 2026, 08:45:50 PM IST",
     "timestamp": "2026-09-21T15:15:50Z",
     "_id": "1790003750162"
+  },
+  {
+    "case_id": "MC-2026-310",
+    "child_name": "DAru vala",
+    "guardian_name": "Guddu bhaiya",
+    "contact_number": "+91 Kai krega",
+    "address": "adsv",
+    "missing_date": "2026-09-25",
+    "missing_location": "aNi pa",
+    "description": "kai ni phna h tha nanga",
+    "created_at": "2026-09-25T09:24:59.042Z",
+    "admin_id": "ADM-MISS-sale-128c62",
+    "updated_at": "25 Sep 2026, 02:54:59 PM IST",
+    "timestamp": "2026-09-25T09:24:59Z",
+    "_id": "1790328299081"
   }
 ]

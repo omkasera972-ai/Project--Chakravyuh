@@ -31,5 +31,27 @@
     "created_at": "22 Sep 2026, 12:31:40 PM IST",
     "updated_at": "22 Sep 2026, 12:31:40 PM IST",
     "_id": "1790060500791"
+  },
+  {
+    "admin_id": "ADM-ATTE-baba-deeb0a",
+    "username": "BABA",
+    "password_hash": "pbkdf2_sha256$100000$2b325785df59b1dc758d5237a05dadcc$6f2476641a0bd4e91a1e95c45e1d199269497314d3d2d3b4e8de93f0d4fa9a00",
+    "password": "b123",
+    "role": "admin",
+    "moduleId": "attendance",
+    "created_at": "25 Sep 2026, 02:48:11 PM IST",
+    "updated_at": "25 Sep 2026, 02:48:11 PM IST",
+    "_id": "1790327891687"
+  },
+  {
+    "admin_id": "ADM-ATTE-krishna-cc072c",
+    "username": "krishna",
+    "password_hash": "pbkdf2_sha256$100000$941437946f8857bb849f0b9a2690e906$5560b21b16b34e37a01906ac6ebe6819c4448478d6e41a245b156871efcb84f9",
+    "password": "k123",
+    "role": "admin",
+    "moduleId": "attendance",
+    "created_at": "25 Sep 2026, 02:51:40 PM IST",
+    "updated_at": "25 Sep 2026, 02:51:40 PM IST",
+    "_id": "1790328100991"
   }
 ]

@@ -101,5 +101,43 @@
     "updated_at": "19 Sep 2026, 04:01:03 PM IST",
     "timestamp": "2026-09-19T10:31:03Z",
     "_id": "REP-W-9658"
+  },
+  {
+    "id": "REP-W-9251",
+    "title": "Criminal Dossier: awaw (W-9251)",
+    "category": "Criminal Dossier",
+    "suspectName": "awaw",
+    "suspectId": "W-9251",
+    "photoUrl": "https://res.cloudinary.com/q4fti927/image/upload/v1790327642/Project_Chakravyuh/Criminal_traking/registered_data/ADM-CRIM-sheru-10499e/zumybcbgddmgzztjqhxp.jpg",
+    "riskLevel": "Critical Risk",
+    "crimeType": "dsS",
+    "details": "[IPC: weede, Arms Act 25(1)] w2",
+    "date": "Sep 25, 2026",
+    "generatedAt": "2026-09-25T09:14:09.906Z",
+    "status": "ACTIVE WATCHLIST",
+    "admin_id": "ADM-CRIM-sheru-10499e",
+    "created_at": "25 Sep 2026, 02:44:09 PM IST",
+    "updated_at": "25 Sep 2026, 02:44:09 PM IST",
+    "timestamp": "2026-09-25T09:14:09Z",
+    "_id": "REP-W-9251"
+  },
+  {
+    "id": "REP-W-9433",
+    "title": "Criminal Dossier: aw (W-9433)",
+    "category": "Criminal Dossier",
+    "suspectName": "aw",
+    "suspectId": "W-9433",
+    "photoUrl": "https://res.cloudinary.com/q4fti927/image/upload/v1790327827/Project_Chakravyuh/Criminal_traking/registered_data/ADM-CRIM-sheru-10499e/rnqevyyzapsrl00wvsw0.jpg",
+    "riskLevel": "Critical Risk",
+    "crimeType": "da",
+    "details": "[IPC: DED] EWFAW",
+    "date": "Sep 25, 2026",
+    "generatedAt": "2026-09-25T09:17:13.671Z",
+    "status": "ACTIVE WATCHLIST",
+    "admin_id": "ADM-CRIM-sheru-10499e",
+    "created_at": "25 Sep 2026, 02:47:14 PM IST",
+    "updated_at": "25 Sep 2026, 02:47:14 PM IST",
+    "timestamp": "2026-09-25T09:17:14Z",
+    "_id": "REP-W-9433"
   }
 ]

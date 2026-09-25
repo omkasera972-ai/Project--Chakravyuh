@@ -151,13 +151,45 @@ async def generic_get_one(collection, doc_id: str, admin_id: Optional[str] = Non
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database fetch error: {str(e)}")
 
+from utils.cloudinary_utils import upload_image
+import re
+
+# Relaxed regex for base64 detection to handle newlines, spaces, and padding safely
+_BASE64_IMG_REGEX = re.compile(r"^data:image/(jpeg|jpg|png|webp|gif);base64,")
+
+def _intercept_images(payload: Dict[str, Any], db_name: str, coll_name: str, admin_id: str) -> Dict[str, Any]:
+    """Scans payload for base64 image strings and uploads them to Cloudinary safely."""
+    processed = dict(payload)
+    safe_admin = str(admin_id).replace(":", "_").replace("/", "_")
+    module_folder = f"Project_Chakravyuh/{db_name}/{coll_name}/{safe_admin}"
+    
+    for k, v in processed.items():
+        if isinstance(v, str):
+            if _BASE64_IMG_REGEX.match(v):
+                try:
+                    secure_url = upload_image(v, module_folder)
+                    if not secure_url:
+                        raise HTTPException(status_code=500, detail=f"Cloudinary rejected the upload for field '{k}'. (Did you restart the backend after updating .env?)")
+                    processed[k] = secure_url
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Image upload system failed for field '{k}'")
+            elif v.startswith("data:image/"):
+                raise HTTPException(status_code=400, detail=f"Unsupported image format in field '{k}'. Only JPEG, PNG, and WebP are allowed.")
+    return processed
+
 async def generic_create(collection, payload: Dict[str, Any], admin_id: str) -> Dict[str, Any]:
     if not payload:
         raise HTTPException(status_code=400, detail="Insert payload cannot be empty")
     if not admin_id:
         raise HTTPException(status_code=401, detail="Unauthorized: admin_id required for data creation")
     try:
-        doc_data = dict(payload)
+        # Intercept and upload any base64 images to Cloudinary
+        db_name = getattr(collection, 'db_name', 'Unknown_DB')
+        coll_name = getattr(collection, 'coll_name', 'Unknown_Collection')
+        doc_data = _intercept_images(payload, db_name, coll_name, admin_id)
+        
         server_time = get_server_time()
         # ALWAYS enforce admin_id from token
         doc_data["admin_id"] = admin_id
@@ -183,7 +215,12 @@ async def generic_update(collection, doc_id: str, payload: Dict[str, Any], admin
         raise HTTPException(status_code=400, detail="Update payload cannot be empty")
     try:
         server_time = get_server_time()
-        update_data = dict(payload)
+        # Intercept and upload any base64 images to Cloudinary
+        db_name = getattr(collection, 'db_name', 'Unknown_DB')
+        coll_name = getattr(collection, 'coll_name', 'Unknown_Collection')
+        safe_admin = admin_id or "system_update"
+        update_data = _intercept_images(payload, db_name, coll_name, safe_admin)
+        
         update_data["updated_at"] = server_time["full_datetime"]
         # Protect admin_id from being overwritten by payload
         if "admin_id" in update_data and admin_id:

@@ -110,5 +110,40 @@
     "created_at": "22 Sep 2026, 12:38:44 PM IST",
     "updated_at": "22 Sep 2026, 12:38:44 PM IST",
     "_id": "ALT-ATTE-38998"
+  },
+  {
+    "admin_id": "ADM-ATTE-baba-deeb0a",
+    "id": "ALT-ATTE-1790328017",
+    "module": "attendance",
+    "type": "Biometric Attendance Verified",
+    "title": "ATTENDANCE MARKED: ZAdu",
+    "location": "Biometric Scanner Gate / Webcam-01",
+    "camera": "CAM-LIVE-WEBCAM-01",
+    "priority": "Verified",
+    "description": "Student ZAdu (ID: S11) attendance marked as Present at 02:50:17 PM IST.",
+    "status": "Active",
+    "timestamp": "25 Sep 2026, 02:50:17 PM IST",
+    "createdAt": "25 Sep 2026, 02:50:17 PM IST",
+    "_id": "ALT-ATTE-1790328017"
+  },
+  {
+    "id": "ALT-ATTE-98783",
+    "module": "attendance",
+    "type": "Biometric Attendance Verified",
+    "title": "ATTENDANCE RECORDED: ZAdu",
+    "location": "Main Gate Terminal / CAM-01",
+    "camera": "CAM-01",
+    "priority": "Verified",
+    "timestamp": "2026-09-25T09:20:18.635Z",
+    "createdAt": "2026-09-25T09:20:18.635Z",
+    "timeAgo": "Just now",
+    "description": "Student ZAdu (ID: S11) attendance marked as Present at 2:50:17 PM.",
+    "status": "Active",
+    "icon": "UserCheck",
+    "badgeColor": "border-emerald-500/60 text-emerald-400 bg-emerald-500/10",
+    "admin_id": "ADM-ATTE-baba-deeb0a",
+    "created_at": "25 Sep 2026, 02:50:18 PM IST",
+    "updated_at": "25 Sep 2026, 02:50:18 PM IST",
+    "_id": "ALT-ATTE-98783"
   }
 ]

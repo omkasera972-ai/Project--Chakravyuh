@@ -42,5 +42,16 @@
     "created_at": "21 Sep 2026, 08:43:41 PM IST",
     "updated_at": "21 Sep 2026, 08:43:41 PM IST",
     "_id": "1790003621977"
+  },
+  {
+    "admin_id": "ADM-MISS-sale-128c62",
+    "username": "SALE",
+    "password_hash": "pbkdf2_sha256$100000$897f7b83fe98b2837f3e3eae866ac4c8$bcca801b94e8f8ee1e0f6a983eb5ed644f954c9b5fa4940ef4f27b893a9c51a7",
+    "password": "s123",
+    "role": "admin",
+    "moduleId": "missing-child",
+    "created_at": "25 Sep 2026, 02:54:06 PM IST",
+    "updated_at": "25 Sep 2026, 02:54:06 PM IST",
+    "_id": "1790328246702"
   }
 ]

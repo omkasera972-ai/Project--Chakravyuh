@@ -430,5 +430,25 @@
     "created_at": "22 Sep 2026, 11:08:15 AM IST",
     "updated_at": "22 Sep 2026, 11:08:15 AM IST",
     "_id": "ALT-469"
+  },
+  {
+    "id": "ALT-255",
+    "module": "missing-child",
+    "type": "Missing Person Sighting",
+    "title": "FOUND PERSON ALERT: DAru vala (MC-2026-310)",
+    "location": "aNi pa",
+    "camera": "CAM-LIVE-WEBCAM-01",
+    "priority": "High",
+    "timestamp": "2026-09-25T09:25:08.494Z",
+    "createdAt": "2026-09-25T09:25:08.494Z",
+    "timeAgo": "Just now",
+    "description": "POSSIBLE MISSING PERSON MATCH: DAru vala located at aNi pa via CCTV Camera with 65.0% precision.",
+    "status": "Active",
+    "icon": "AlertTriangle",
+    "badgeColor": "border-amber-500/50 text-amber-400",
+    "admin_id": "ADM-MISS-sale-128c62",
+    "created_at": "25 Sep 2026, 02:55:08 PM IST",
+    "updated_at": "25 Sep 2026, 02:55:08 PM IST",
+    "_id": "ALT-255"
   }
 ]
