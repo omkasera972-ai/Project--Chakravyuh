@@ -1,0 +1,79 @@
+[
+  {
+    "_id": "6aad9857e6242ae6dd428b7f",
+    "admin_id": "ADM-CRIM-reigns-4c642f",
+    "username": "reigns",
+    "password_hash": "pbkdf2_sha256$100000$00c5b2c0e668a40539a1593f1bb7509f$ccd4148b28f07cf1cf8b4f7eff8b06005069d65a701c146319b9a337f39d4b8d",
+    "password": "r1234",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 01:30:23 AM IST",
+    "updated_at": "19 Sep 2026, 01:30:23 AM IST"
+  },
+  {
+    "_id": "6aad988ee6242ae6dd428b80",
+    "admin_id": "ADM-CRIM-chandan-70d45a",
+    "username": "chandan",
+    "password_hash": "pbkdf2_sha256$100000$2458729e3b64db9b04ec43dcc23ec7bd$6bd4b561b77beb9df6afc65567ebf8d5f60f15ba5fa03fbddf27b51798e202f9",
+    "password": "c123",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 01:31:18 AM IST",
+    "updated_at": "19 Sep 2026, 01:31:18 AM IST"
+  },
+  {
+    "_id": "6aad9af3a00b9c61a9f6103a",
+    "admin_id": "ADM-CRIM-jon-07e693",
+    "username": "jon",
+    "password_hash": "pbkdf2_sha256$100000$611d6c7141d8d5887811919caf4ccc91$4a7cd10967ea10fc5082bd988314bc5edfd2095a1e504140f1ce90b80f13c4d8",
+    "password": "j123",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 01:41:31 AM IST",
+    "updated_at": "19 Sep 2026, 01:41:31 AM IST"
+  },
+  {
+    "admin_id": "ADM-CRIM-aavesh-5bf53b",
+    "username": "aavesh",
+    "password_hash": "pbkdf2_sha256$100000$c1634d4c1bbc5b3108f35fb703d5ff1f$7b9a85f5c94935c6abd6044011625a6eb7666bacfb30d60fca86c2c547af8103",
+    "password": "a123",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 01:36:45 PM IST",
+    "updated_at": "19 Sep 2026, 01:36:45 PM IST",
+    "_id": "1789805205866"
+  },
+  {
+    "admin_id": "ADM-CRIM-lala-51fbe6",
+    "username": "lala",
+    "password_hash": "pbkdf2_sha256$100000$0de48b6188f04c1f3649c3a4981d5dc8$1a896422334beabfa2a4bc1829c1728467059a45ef573c004b3bae7db4455ccb",
+    "password": "l123",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 01:54:33 PM IST",
+    "updated_at": "19 Sep 2026, 01:54:33 PM IST",
+    "_id": "1789806273562"
+  },
+  {
+    "admin_id": "ADM-CRIM-om-50fec1",
+    "username": "om",
+    "password_hash": "pbkdf2_sha256$100000$15fda6656d4d69e2c5359d04c6a6c524$d4e041b4fad7bc53918b30b07705e40ab90727b5444a92365d564b8b83b3a34f",
+    "password": "o123",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 02:19:45 PM IST",
+    "updated_at": "19 Sep 2026, 02:19:45 PM IST",
+    "_id": "1789807785906"
+  },
+  {
+    "admin_id": "ADM-CRIM-sheru-10499e",
+    "username": "sheru",
+    "password_hash": "pbkdf2_sha256$100000$f63f2ef738e9abab05ecee772f14e833$670855338ce20ea54d9a5905af44a51e3f8693d60f88db59672b4e0565d9ecaf",
+    "password": "s123",
+    "role": "admin",
+    "moduleId": "criminal-tracking",
+    "created_at": "19 Sep 2026, 04:00:21 PM IST",
+    "updated_at": "19 Sep 2026, 04:00:21 PM IST",
+    "_id": "1789813821970"
+  }
+]

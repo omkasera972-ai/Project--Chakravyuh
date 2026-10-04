@@ -1,0 +1,21 @@
+[
+  {
+    "id": "S001",
+    "module": "attendance",
+    "name": "bhai mere",
+    "department": "BCA ka hi",
+    "role": "Student",
+    "entry": "--",
+    "exit": "--",
+    "status": "Registered",
+    "camera": "CAM-01",
+    "avatar": "👩‍🎓",
+    "photoUrl": "https://res.cloudinary.com/q4fti927/image/upload/v1790328153/Project_Chakravyuh/Attendence/registered_data/ADM-ATTE-krishna-cc072c/iuiwfavcwf8hqfjnk5rq.jpg",
+    "badgeId": "BADGE-1376",
+    "admin_id": "ADM-ATTE-krishna-cc072c",
+    "created_at": "25 Sep 2026, 02:52:38 PM IST",
+    "updated_at": "25 Sep 2026, 02:52:38 PM IST",
+    "timestamp": "2026-09-25T09:22:38Z",
+    "_id": "S001"
+  }
+]

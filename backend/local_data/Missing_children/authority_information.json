@@ -1,0 +1,73 @@
+[
+  {
+    "officer_id": "AUTH-123",
+    "officer_name": "Jane Doe",
+    "rank": "Rescue Officer",
+    "police_station_name": "Rescue Center",
+    "police_station_location": {
+      "lat": 24.516,
+      "lng": 75.703,
+      "address": "Nearby"
+    },
+    "officer_email": "test-auth@example.com",
+    "admin_id": "ADM-MISS-admin-123456",
+    "created_at": "20 Sep 2026, 11:59:15 PM IST",
+    "updated_at": "20 Sep 2026, 11:59:15 PM IST",
+    "timestamp": "2026-09-20T18:29:15Z",
+    "_id": "1789928955479"
+  },
+  {
+    "officer_id": "ogg",
+    "officer_name": "erg",
+    "rank": "grg",
+    "police_station_name": "ggsg",
+    "police_station_location": {
+      "address": "NH47, Nemawar, Khategaon Tahsil, Dewas, Madhya Pradesh, India",
+      "latitude": 22.50580970461879,
+      "longitude": 76.97903126478197,
+      "map_link": "https://maps.google.com/?q=22.50580970461879,76.97903126478197"
+    },
+    "officer_email": "omkasera972@gmail.com",
+    "created_at": "2026-09-20T18:40:19.444Z",
+    "admin_id": "ADM-MISS-sheru-c81463",
+    "updated_at": "21 Sep 2026, 12:10:19 AM IST",
+    "timestamp": "2026-09-20T18:40:19Z",
+    "_id": "1789929619457"
+  },
+  {
+    "officer_id": "Officer001",
+    "officer_name": "Salla bimar",
+    "rank": "TCS",
+    "police_station_name": "Nemawar ps",
+    "police_station_location": {
+      "address": "NH47, Nemawar, Khategaon Tahsil, Dewas, Madhya Pradesh, India",
+      "latitude": 22.505802270816844,
+      "longitude": 76.97901248931886,
+      "map_link": "https://maps.google.com/?q=22.505802270816844,76.97901248931886"
+    },
+    "officer_email": "omkasera972@gmail.com",
+    "created_at": "2026-09-21T14:49:38.574Z",
+    "admin_id": "ADM-MISS-john-dd603b",
+    "updated_at": "21 Sep 2026, 08:19:38 PM IST",
+    "timestamp": "2026-09-21T14:49:38Z",
+    "_id": "1790002178597"
+  },
+  {
+    "officer_id": "Offier001",
+    "officer_name": "Rk pradan",
+    "rank": "erf",
+    "police_station_name": "Handiya police station",
+    "police_station_location": {
+      "address": "Handiya, Handiya Tahsil, Harda, Madhya Pradesh, India",
+      "latitude": 22.482235110657168,
+      "longitude": 76.97863698005678,
+      "map_link": "https://maps.google.com/?q=22.482235110657168,76.97863698005678"
+    },
+    "officer_email": "omkasera972@gmail.com",
+    "created_at": "2026-09-21T15:14:59.681Z",
+    "admin_id": "ADM-MISS-john2-96924f",
+    "updated_at": "21 Sep 2026, 08:44:59 PM IST",
+    "timestamp": "2026-09-21T15:14:59Z",
+    "_id": "1790003699691"
+  }
+]

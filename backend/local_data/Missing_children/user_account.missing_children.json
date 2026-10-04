@@ -1,0 +1,57 @@
+[
+  {
+    "admin_id": "ADM-MISS-ashwin-11caad",
+    "username": "ashwin",
+    "password_hash": "pbkdf2_sha256$100000$56c5978de47e83f0378e1450c4a63638$307ce4b4ddbf8a49dafa2d936958ec7b05c4eb72441ef7be2c2c03ef504567b6",
+    "password": "a123",
+    "role": "admin",
+    "moduleId": "missing-child",
+    "created_at": "19 Sep 2026, 02:35:32 PM IST",
+    "updated_at": "19 Sep 2026, 02:35:32 PM IST",
+    "_id": "1789808732912"
+  },
+  {
+    "admin_id": "ADM-MISS-sheru-c81463",
+    "username": "sheru",
+    "password_hash": "pbkdf2_sha256$100000$bb85939804bb4f3a2948713110227399$9aa28c9e5758d2beddd3f2f58414cdd95d0e7c8cdbd471a1a4d522eb8986f154",
+    "password": "s123",
+    "role": "admin",
+    "moduleId": "missing-child",
+    "created_at": "20 Sep 2026, 12:20:20 AM IST",
+    "updated_at": "20 Sep 2026, 12:20:20 AM IST",
+    "_id": "1789843820562"
+  },
+  {
+    "admin_id": "ADM-MISS-john-dd603b",
+    "username": "john",
+    "password_hash": "pbkdf2_sha256$100000$400943cfa835afa4056324e0768fcf34$aea2fa9204464063334ae524f6ab1749ab937dd19bf730e64472a859725406f0",
+    "password": "j123",
+    "role": "admin",
+    "moduleId": "missing-child",
+    "created_at": "21 Sep 2026, 08:17:13 PM IST",
+    "updated_at": "21 Sep 2026, 08:17:13 PM IST",
+    "_id": "1790002033475"
+  },
+  {
+    "admin_id": "ADM-MISS-john2-96924f",
+    "username": "john2",
+    "password_hash": "pbkdf2_sha256$100000$ca691f4b567fd5d53ecd5e9366f3e290$8a9760cb82ce625667c459fea97ad1826e7296aa563be7e6ba310bf3e0e3a7d2",
+    "password": "j2123",
+    "role": "admin",
+    "moduleId": "missing-child",
+    "created_at": "21 Sep 2026, 08:43:41 PM IST",
+    "updated_at": "21 Sep 2026, 08:43:41 PM IST",
+    "_id": "1790003621977"
+  },
+  {
+    "admin_id": "ADM-MISS-sale-128c62",
+    "username": "SALE",
+    "password_hash": "pbkdf2_sha256$100000$897f7b83fe98b2837f3e3eae866ac4c8$bcca801b94e8f8ee1e0f6a983eb5ed644f954c9b5fa4940ef4f27b893a9c51a7",
+    "password": "s123",
+    "role": "admin",
+    "moduleId": "missing-child",
+    "created_at": "25 Sep 2026, 02:54:06 PM IST",
+    "updated_at": "25 Sep 2026, 02:54:06 PM IST",
+    "_id": "1790328246702"
+  }
+]
