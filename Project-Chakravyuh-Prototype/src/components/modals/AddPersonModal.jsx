@@ -3,7 +3,7 @@ import { X, UserPlus, Upload, Shield, Image as ImageIcon, PlusCircle, CheckCircl
 import { useApp } from '../../context/AppContext';
 
 export const AddPersonModal = () => {
-  const { activeModal, setActiveModal, addPerson } = useApp();
+  const { activeModal, setActiveModal, addPerson, personnel = [], showToast } = useApp();
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -16,6 +16,7 @@ export const AddPersonModal = () => {
   });
 
   const [imagePreview, setImagePreview] = useState(null);
+  const [photoError, setPhotoError] = useState(null);
 
   if (activeModal !== 'addPerson') return null;
 
@@ -29,65 +30,110 @@ export const AddPersonModal = () => {
   const avatars = ['👨‍🎓', '👩‍🎓', '👨‍🏫', '👩‍🏫', '👨‍💼', '👩‍💼', '🏛️', '👮‍♂️'];
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files && e.target.files[0];
     if (file) {
+      setPhotoError(null);
       const reader = new FileReader();
       reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_SIZE = 400;
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > MAX_SIZE) {
-              height *= MAX_SIZE / width;
-              width = MAX_SIZE;
-            }
-          } else {
-            if (height > MAX_SIZE) {
-              width *= MAX_SIZE / height;
-              height = MAX_SIZE;
-            }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          setImagePreview(compressedDataUrl);
-          setFormData((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
-        };
-        img.src = event.target.result;
+        const rawDataUrl = event.target.result;
+        if (rawDataUrl) {
+          setImagePreview(rawDataUrl);
+          setFormData((prev) => ({ ...prev, photoUrl: rawDataUrl }));
+          setPhotoError(null);
+
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              const MAX_SIZE = 400;
+              let width = img.width;
+              let height = img.height;
+              if (width > height) {
+                if (width > MAX_SIZE) {
+                  height *= MAX_SIZE / width;
+                  width = MAX_SIZE;
+                }
+              } else {
+                if (height > MAX_SIZE) {
+                  width *= MAX_SIZE / height;
+                  height = MAX_SIZE;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+              setImagePreview(compressedDataUrl);
+              setFormData((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
+            } catch (err) {}
+          };
+          img.src = rawDataUrl;
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleUrlChange = (e) => {
+    const val = e.target.value;
+    setPhotoError(null);
+    setFormData((prev) => ({ ...prev, photoUrl: val }));
+    setImagePreview(val || null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    setPhotoError(null);
+
+    if (!formData.name.trim()) {
+      if (showToast) showToast('Name Required', 'Please enter member full name.', 'warning');
+      return;
+    }
+
+    const finalPhotoUrl = formData.photoUrl || imagePreview;
+    if (!finalPhotoUrl || !String(finalPhotoUrl).trim()) {
+      const errMsg = 'Member photo image is MANDATORY for AI face recognition attendance. Please upload a photo image.';
+      setPhotoError(errMsg);
+      if (showToast) {
+        showToast('Photo Required ⚠️', errMsg, 'warning');
+      }
+      return;
+    }
 
     let category = 'students';
     let prefix = 'STU';
+    let baseNumber = 101;
 
     if (formData.role.includes('Faculty') || formData.role.includes('Teacher')) {
       category = 'faculties';
       prefix = 'TCH';
+      baseNumber = 201;
     } else if (formData.role.includes('Dean') || formData.role.includes('HOD') || formData.role.includes('Management')) {
       category = 'leadership';
       prefix = 'ADM';
+      baseNumber = 301;
     } else if (formData.role.includes('Staff') || formData.role.includes('Officer')) {
       category = 'leadership';
       prefix = 'EMP';
+      baseNumber = 401;
+    }
+
+    let realId = formData.id.trim();
+    if (!realId) {
+      const categoryMembers = (personnel || []).filter(p => p && p.id && String(p.id).startsWith(prefix));
+      const nextNum = baseNumber + categoryMembers.length;
+      realId = `${prefix}-2026-${String(nextNum).padStart(3, '0')}`;
     }
 
     const res = await addPerson({
       ...formData,
+      photoUrl: String(finalPhotoUrl).trim(),
       module: activeModule || 'attendance',
       category,
       designation: formData.role,
-      id: formData.id.trim() || `${prefix}-${Math.floor(100 + Math.random() * 900)}`
+      id: realId,
+      badgeId: `BADGE-${realId}`
     });
 
     if (res && res.success) {
@@ -185,15 +231,20 @@ export const AddPersonModal = () => {
 
           {/* Photo Image Upload Section */}
           <div className="space-y-2">
-            <label className="block text-gray-800 dark:text-gray-200 font-extrabold text-sm">
-              Upload Member Photo Image *
+            <label className="block text-gray-800 dark:text-gray-200 font-extrabold text-sm flex items-center justify-between">
+              <span>
+                Upload Member Photo Image <span className="text-rose-500 font-bold">* (Mandatory for AI Scanner)</span>
+              </span>
+              {photoError && <span className="text-xs text-rose-500 font-black animate-pulse">Photo Required!</span>}
             </label>
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-[#161922] border border-gray-200 dark:border-gray-800">
+            <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all border ${
+              photoError ? 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/20 ring-2 ring-rose-500/30' : 'bg-gray-50 dark:bg-[#161922] border-gray-200 dark:border-gray-800'
+            }`}>
               <div className="w-16 h-16 rounded-2xl bg-white dark:bg-[#101217] border border-gray-300 dark:border-gray-700 overflow-hidden flex items-center justify-center text-3xl shadow-xs flex-shrink-0">
                 {imagePreview || formData.photoUrl ? (
                   <img src={imagePreview || formData.photoUrl} alt="Member Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <span>{formData.avatar}</span>
+                  <span className="text-slate-400">📷</span>
                 )}
               </div>
               <div className="flex-1 space-y-2">
@@ -206,15 +257,17 @@ export const AddPersonModal = () => {
                 <input
                   type="url"
                   value={formData.photoUrl}
-                  onChange={(e) => {
-                    setFormData({ ...formData, photoUrl: e.target.value });
-                    setImagePreview(e.target.value);
-                  }}
+                  onChange={handleUrlChange}
                   placeholder="Or paste Photo URL link..."
                   className="w-full px-3.5 py-2 bg-white dark:bg-[#101217] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 text-xs focus:outline-none focus:border-emerald-500 font-medium"
                 />
               </div>
             </div>
+            {photoError && (
+              <p className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100/90 dark:bg-rose-950/40 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900 flex items-center gap-1.5 animate-in fade-in">
+                <span>⚠️ {photoError}</span>
+              </p>
+            )}
           </div>
 
           <div>

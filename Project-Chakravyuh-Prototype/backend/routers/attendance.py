@@ -157,6 +157,16 @@ async def get_attendance_scans():
 @router.post("/attendance-scan")
 @router.post("/attendance_scan")
 async def create_attendance_scan(payload: Dict[str, Any] = Body(...)):
+    override_win = payload.get("override_window", False)
+    is_open, window_msg, window_info = is_within_attendance_window()
+    if not is_open and not override_win:
+        return {
+            "success": False,
+            "status": "closed",
+            "message": window_msg,
+            "window_info": window_info
+        }
+
     emp_id = payload.get("person_id") or payload.get("personId") or payload.get("id")
     if emp_id:
         is_allowed, last_scan, elapsed_sec, rem_sec, next_allowed_at = await check_20h_cooldown(str(emp_id))
@@ -404,6 +414,25 @@ async def delete_batch_personnel(payload: Dict[str, Any] = Body(...)):
     res = await db_attendance["registered_data"].delete_many({"id": {"$in": str_ids}})
     return {"status": "success", "deleted_count": res.deleted_count, "ids": str_ids}
 
+def is_within_attendance_window() -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Checks if current time in IST (Asia/Kolkata) is between 09:00 AM and 05:00 PM (17:00).
+    """
+    IST_TZ = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(timezone.utc).astimezone(IST_TZ)
+    current_time_val = now_ist.hour * 60 + now_ist.minute
+    start_window = 9 * 60    # 9:00 AM (540 min)
+    end_window = 17 * 60     # 5:00 PM (1020 min)
+
+    is_open = start_window <= current_time_val <= end_window
+    msg = "" if is_open else f"Attendance window is CLOSED. Attendance can only be marked between 9:00 AM and 5:00 PM IST (Current time: {now_ist.strftime('%I:%M:%S %p IST')})."
+
+    return is_open, msg, {
+        "is_open": is_open,
+        "current_time_ist": now_ist.strftime("%I:%M:%S %p IST"),
+        "window": "09:00 AM - 05:00 PM IST"
+    }
+
 class AttendanceMarkRequest(BaseModel):
     id: str = Field(..., description="Personnel / Student ID")
     name: Optional[str] = None
@@ -413,12 +442,23 @@ class AttendanceMarkRequest(BaseModel):
     date: Optional[str] = None
     avatar: Optional[str] = None
     photoUrl: Optional[str] = None
+    override_window: Optional[bool] = False
 
 @router.post("/mark")
 async def mark_attendance(payload: AttendanceMarkRequest):
     emp_id = str(payload.id).strip()
     status_val = payload.status or "Present"
-    
+
+    # Enforce 9:00 AM to 5:00 PM IST Attendance Window Rule (unless admin override requested)
+    is_open, window_msg, window_info = is_within_attendance_window()
+    if not is_open and not payload.override_window:
+        return {
+            "success": False,
+            "status": "closed",
+            "message": window_msg,
+            "window_info": window_info
+        }
+
     # Enforce 20-Hour Duplicate Face Scan Cooldown Rule
     is_allowed, last_scan, elapsed_sec, rem_sec, next_allowed_at = await check_20h_cooldown(emp_id)
     if not is_allowed:

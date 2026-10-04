@@ -384,26 +384,28 @@ export const Dashboard = () => {
             <CameraBgSvg className="w-14 h-14 text-blue-500" />
           </button>
 
-          <button
-            onClick={() => navigate(`/portal/${currentModule}/maps`)}
-            className="relative overflow-hidden border-t-4 border-t-emerald-500 p-6 rounded-2xl bg-white dark:bg-[#11141c] border-x border-b border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 text-left space-y-4 transition-all group shadow-xs"
-          >
-            <div className="relative z-10 space-y-3">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                <MapPin className="w-6 h-6" />
+          {currentModule !== 'attendance' && (
+            <button
+              onClick={() => navigate(`/portal/${currentModule}/maps`)}
+              className="relative overflow-hidden border-t-4 border-t-emerald-500 p-6 rounded-2xl bg-white dark:bg-[#11141c] border-x border-b border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 text-left space-y-4 transition-all group shadow-xs"
+            >
+              <div className="relative z-10 space-y-3">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900 dark:text-white text-base sm:text-lg">Geospatial Map</h3>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed font-medium">
+                    Interactive real light map topology, camera nodes, and incident zones.
+                  </p>
+                </div>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                  Open Interactive Map →
+                </span>
               </div>
-              <div>
-                <h3 className="font-black text-gray-900 dark:text-white text-base sm:text-lg">Geospatial Map</h3>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed font-medium">
-                  Interactive real light map topology, camera nodes, and incident zones.
-                </p>
-              </div>
-              <span className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                Open Interactive Map →
-              </span>
-            </div>
-            <MapBgSvg className="w-14 h-14 text-emerald-500" />
-          </button>
+              <MapBgSvg className="w-14 h-14 text-emerald-500" />
+            </button>
+          )}
 
           <button
             onClick={() => navigate(`/portal/${currentModule}/alerts`)}

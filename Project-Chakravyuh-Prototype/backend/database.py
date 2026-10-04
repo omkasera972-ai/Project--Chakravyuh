@@ -47,10 +47,22 @@ class LocalCursor:
     def __init__(self, data: List[Dict[str, Any]]):
         self._data = data
 
+    def sort(self, key_or_list, direction=None):
+        return self
+
+    def limit(self, limit: int):
+        if limit is not None:
+            self._data = self._data[:limit]
+        return self
+
     async def to_list(self, length: Optional[int] = None) -> List[Dict[str, Any]]:
         if length is not None:
             return self._data[:length]
         return self._data
+
+class LocalInsertResult:
+    def __init__(self, inserted_id: Any):
+        self.inserted_id = inserted_id
 
 class LocalDeleteResult:
     def __init__(self, deleted_count: int):
@@ -109,17 +121,26 @@ class LocalCollection:
                 return dict(d)
         return None
 
-    async def insert_one(self, document: Dict[str, Any]):
+    async def insert_one(self, document: Dict[str, Any]) -> LocalInsertResult:
         self._load()
         c = dict(document)
+        inserted_id = c.get("id") or c.get("_id") or f"loc_{int(time.time()*1000)}"
+        c["_id"] = str(inserted_id)
+        if c.get("id"):
+            self.docs = [d for d in self.docs if d.get("id") != c.get("id")]
         self.docs.append(c)
         self._save()
-        return c
+        return LocalInsertResult(inserted_id)
 
     async def insert_many(self, documents: List[Dict[str, Any]]):
         self._load()
         for doc in documents:
-            self.docs.append(dict(doc))
+            c = dict(doc)
+            inserted_id = c.get("id") or c.get("_id") or f"loc_{int(time.time()*1000)}"
+            c["_id"] = str(inserted_id)
+            if c.get("id"):
+                self.docs = [d for d in self.docs if d.get("id") != c.get("id")]
+            self.docs.append(c)
         self._save()
 
     async def update_one(self, filter_query: Dict[str, Any], update_cmd: Dict[str, Any], upsert: bool = False):
@@ -135,6 +156,8 @@ class LocalCollection:
         elif upsert:
             new_doc = dict(filter_query)
             new_doc.update(set_fields)
+            if not new_doc.get("_id"):
+                new_doc["_id"] = str(new_doc.get("id") or f"loc_{int(time.time()*1000)}")
             self.docs.append(new_doc)
         self._save()
 
@@ -155,6 +178,49 @@ class LocalCollection:
         self._save()
         return LocalDeleteResult(deleted_count)
 
+class SmartProxyCursor:
+    def __init__(self, local_coll: LocalCollection, db_name: str, coll_name: str, filter_query: Dict[str, Any] = None):
+        self.local_coll = local_coll
+        self.db_name = db_name
+        self.coll_name = coll_name
+        self.filter_query = filter_query or {}
+        self._sort_args = None
+        self._limit_val = None
+
+    def sort(self, key_or_list, direction=None):
+        self._sort_args = (key_or_list, direction)
+        return self
+
+    def limit(self, limit: int):
+        self._limit_val = limit
+        return self
+
+    async def to_list(self, length: Optional[int] = None) -> List[Dict[str, Any]]:
+        global use_local, client
+        if not use_local and client is not None:
+            try:
+                motor_cursor = client[self.db_name][self.coll_name].find(self.filter_query)
+                if self._sort_args:
+                    if isinstance(self._sort_args[0], list):
+                        motor_cursor = motor_cursor.sort(self._sort_args[0])
+                    else:
+                        motor_cursor = motor_cursor.sort(self._sort_args[0], self._sort_args[1])
+                if self._limit_val is not None:
+                    motor_cursor = motor_cursor.limit(self._limit_val)
+                eff_len = length if length is not None else (self._limit_val if self._limit_val is not None else 500)
+                return await motor_cursor.to_list(length=eff_len)
+            except Exception as pe:
+                logger.warning(f"MongoDB Motor cursor error: {pe}. Switching to local storage proxy.")
+                use_local = True
+
+        local_cursor = self.local_coll.find(self.filter_query)
+        if self._sort_args:
+            local_cursor.sort(self._sort_args[0], self._sort_args[1])
+        if self._limit_val is not None:
+            local_cursor.limit(self._limit_val)
+        eff_len = length if length is not None else (self._limit_val if self._limit_val is not None else 500)
+        return await local_cursor.to_list(length=eff_len)
+
 class SmartProxyCollection:
     def __init__(self, db_name: str, coll_name: str):
         self.db_name = db_name
@@ -162,33 +228,76 @@ class SmartProxyCollection:
         self.local_coll = LocalCollection(db_name, coll_name)
 
     def _get_coll(self):
+        global use_local, client
         if use_local or client is None:
             return self.local_coll
         return client[self.db_name][self.coll_name]
 
     async def count_documents(self, filter_query: Dict[str, Any]) -> int:
-        return await self._get_coll().count_documents(filter_query)
+        global use_local
+        try:
+            return await self._get_coll().count_documents(filter_query)
+        except Exception as pe:
+            logger.warning(f"MongoDB count_documents error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.count_documents(filter_query)
 
     def find(self, filter_query: Dict[str, Any] = None):
-        return self._get_coll().find(filter_query)
+        return SmartProxyCursor(self.local_coll, self.db_name, self.coll_name, filter_query)
 
     async def find_one(self, filter_query: Dict[str, Any]):
-        return await self._get_coll().find_one(filter_query)
+        global use_local
+        try:
+            return await self._get_coll().find_one(filter_query)
+        except Exception as pe:
+            logger.warning(f"MongoDB find_one error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.find_one(filter_query)
 
     async def insert_one(self, document: Dict[str, Any]):
-        return await self._get_coll().insert_one(document)
+        global use_local
+        try:
+            return await self._get_coll().insert_one(document)
+        except Exception as pe:
+            logger.warning(f"MongoDB insert_one error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.insert_one(document)
 
     async def insert_many(self, documents: List[Dict[str, Any]]):
-        return await self._get_coll().insert_many(documents)
+        global use_local
+        try:
+            return await self._get_coll().insert_many(documents)
+        except Exception as pe:
+            logger.warning(f"MongoDB insert_many error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.insert_many(documents)
 
     async def update_one(self, filter_query: Dict[str, Any], update_cmd: Dict[str, Any], upsert: bool = False):
-        return await self._get_coll().update_one(filter_query, update_cmd, upsert=upsert)
+        global use_local
+        try:
+            return await self._get_coll().update_one(filter_query, update_cmd, upsert=upsert)
+        except Exception as pe:
+            logger.warning(f"MongoDB update_one error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.update_one(filter_query, update_cmd, upsert=upsert)
 
     async def delete_one(self, filter_query: Dict[str, Any]):
-        return await self._get_coll().delete_one(filter_query)
+        global use_local
+        try:
+            return await self._get_coll().delete_one(filter_query)
+        except Exception as pe:
+            logger.warning(f"MongoDB delete_one error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.delete_one(filter_query)
 
     async def delete_many(self, filter_query: Dict[str, Any]):
-        return await self._get_coll().delete_many(filter_query)
+        global use_local
+        try:
+            return await self._get_coll().delete_many(filter_query)
+        except Exception as pe:
+            logger.warning(f"MongoDB delete_many error: {pe}. Switching to local proxy.")
+            use_local = True
+            return await self.local_coll.delete_many(filter_query)
 
 class SmartProxyDatabase:
     def __init__(self, db_name: str):
@@ -228,24 +337,17 @@ except Exception as e:
     use_local = True
 
 # ---------------------------------------------------------
-# Export 5 Distinct Databases (as requested)
+# Export 5 Distinct Databases (wrapped with SmartProxy for auto fallback)
 # ---------------------------------------------------------
-if client is not None:
-    db_attendance = client['Attendence']
-    db_criminal = client['Criminal_traking']
-    db_anpr = client['ANPR_vehicle_system']
-    db_missing = client['Missing_children']
-    db_defence = client['Defence_tactical_system']
-else:
-    db_attendance = SmartProxyDatabase('Attendence')
-    db_criminal = SmartProxyDatabase('Criminal_traking')
-    db_anpr = SmartProxyDatabase('ANPR_vehicle_system')
-    db_missing = SmartProxyDatabase('Missing_children')
-    db_defence = SmartProxyDatabase('Defence_tactical_system')
+db_attendance = SmartProxyDatabase('Attendence')
+db_criminal = SmartProxyDatabase('Criminal_traking')
+db_anpr = SmartProxyDatabase('ANPR_vehicle_system')
+db_missing = SmartProxyDatabase('Missing_children')
+db_defence = SmartProxyDatabase('Defence_tactical_system')
 
 # Auxiliary database exports for application system compatibility
-db_contacts = client['chakravyuh_contacts'] if client is not None else SmartProxyDatabase('chakravyuh_contacts')
-db_users = client['chakravyuh_users'] if client is not None else SmartProxyDatabase('chakravyuh_users')
+db_contacts = SmartProxyDatabase('chakravyuh_contacts')
+db_users = SmartProxyDatabase('chakravyuh_users')
 
 
 def get_sync_client() -> pymongo.MongoClient:
@@ -323,33 +425,22 @@ async def check_database_health() -> Dict[str, Any]:
         }
 
 
-async def verify_db_connection(max_retries: int = 3, retry_delay: float = 1.0) -> Tuple[bool, str]:
+async def verify_db_connection(max_retries: int = 1, retry_delay: float = 0.5) -> Tuple[bool, str]:
     """
-    Pings MongoDB Atlas with configurable retry logic and clean exception handling.
+    Pings MongoDB Atlas with fast timeout and fallback to local storage proxy.
     """
     global use_local
     if client is None:
         use_local = True
         return False, "MongoDB client is uninitialized"
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            logger.info(f"Connecting to MongoDB Atlas (Attempt {attempt}/{max_retries})...")
-            await client.admin.command('ping')
-            use_local = False
-            logger.info("✅ [SUCCESS] Successfully connected to MongoDB Atlas Cluster!")
-            return True, "Connected to MongoDB Atlas Cloud Cluster"
-        except (ConnectionFailure, ServerSelectionTimeoutError) as err:
-            logger.warning(f"[ATTEMPT {attempt} FAILED] Ping failed due to network/timeout: {err}")
-            if attempt < max_retries:
-                await asyncio.sleep(retry_delay)
-        except PyMongoError as err:
-            logger.error(f"PyMongo Database Error: {err}")
-            return False, f"Database Error: {str(err)}"
-        except Exception as err:
-            logger.error(f"Unexpected Database Error: {err}")
-            return False, f"Unexpected Error: {str(err)}"
-
-    logger.warning("MongoDB Atlas cluster unreachable after retries. Falling back to local storage proxy.")
-    use_local = True
-    return False, "Failed to connect to MongoDB Atlas Cluster after maximum retries"
+    try:
+        logger.info("Connecting to MongoDB Atlas Cluster...")
+        await client.admin.command('ping')
+        use_local = False
+        logger.info("✅ [SUCCESS] Successfully connected to MongoDB Atlas Cluster!")
+        return True, "Connected to MongoDB Atlas Cloud Cluster"
+    except Exception as err:
+        logger.warning(f"MongoDB Atlas unreachable ({err}). Using local JSON storage fallback.")
+        use_local = True
+        return False, f"Using local storage fallback: {str(err)}"

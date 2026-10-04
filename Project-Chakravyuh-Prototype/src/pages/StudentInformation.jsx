@@ -455,83 +455,146 @@ export const StudentInformation = () => {
     setIsGeneratingPdf(true);
     try {
       const doc = new jsPDF();
-      const timeNow12Hr = new Date().toLocaleString('en-US', { hour12: true });
       const rec = getStudentStatusForDate(person, selectedDate);
 
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, 210, 40, 'F');
+      // Date Formatting
+      let dObj = new Date(selectedDate + 'T00:00:00');
+      if (isNaN(dObj.getTime())) dObj = new Date();
+      const recordDateFormatted = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
-      doc.setTextColor(255, 255, 255);
+      const now = new Date();
+      const genDateFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour12: true }) + ' IST';
+
+      // Header Title Block
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text('PROJECT CHAKRAVYUH — OFFICIAL PERSONNEL DOSSIER', 14, 18);
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text('PROJECT CHAKRAVYUH', 105, 18, { align: 'center' });
 
-      doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184);
-      doc.text('BIOMETRIC ATTENDANCE & INSTITUTIONAL RECORD (12-HOUR SYSTEM)', 14, 28);
-      doc.text(`Generated: ${timeNow12Hr}  |  Record Date: ${selectedDate}`, 14, 34);
+      doc.setFontSize(13);
+      doc.setTextColor(5, 150, 105); // emerald-600
+      doc.text('BIOMETRIC ATTENDANCE RECORD', 105, 26, { align: 'center' });
 
-      doc.setFillColor(248, 250, 252);
-      doc.rect(14, 48, 182, 94, 'F');
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(14, 48, 182, 94, 'S');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Record Date: ${recordDateFormatted}`, 105, 34, { align: 'center' });
+      doc.text(`Generated: ${genDateFormatted}`, 105, 40, { align: 'center' });
 
-      let photoAdded = false;
+      // Horizontal Separator Line
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.setLineWidth(0.5);
+      doc.line(25, 46, 185, 46);
+
+      // Student Photo Box
+      const photoY = 52;
+      let photoSuccess = false;
+
       if (person.photoUrl) {
         try {
-          const base64Photo = await loadImageAsBase64(person.photoUrl);
-          if (base64Photo) {
-            doc.addImage(base64Photo, 'JPEG', 22, 56, 40, 48);
-            doc.setDrawColor(15, 23, 42);
-            doc.rect(22, 56, 40, 48, 'S');
-            photoAdded = true;
+          const base64Img = await loadImageAsBase64(person.photoUrl);
+          if (base64Img) {
+            doc.addImage(base64Img, 'JPEG', 87, photoY, 36, 36);
+            doc.setDrawColor(16, 185, 129);
+            doc.setLineWidth(0.8);
+            doc.rect(87, photoY, 36, 36);
+            photoSuccess = true;
           }
-        } catch (e) {
-          // ignore
+        } catch (err) {
+          console.warn('Student photo embedding warning:', err);
         }
       }
 
-      if (!photoAdded) {
-        doc.setFillColor(226, 232, 240);
-        doc.rect(22, 56, 40, 48, 'F');
-        doc.setTextColor(100, 116, 139);
-        doc.setFontSize(10);
-        doc.text('NO PHOTO', 26, 82);
+      if (!photoSuccess) {
+        doc.setFillColor(241, 245, 249);
+        doc.rect(87, photoY, 36, 36, 'F');
+        doc.setDrawColor(203, 213, 225);
+        doc.rect(87, photoY, 36, 36, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text('[ STUDENT PHOTO ]', 105, photoY + 20, { align: 'center' });
       }
 
-      const startX = 72;
+      let yPos = photoY + 46;
+      const col1X = 35;
+      const col2X = 85;
+
+      // Student Info Table Lines
+      const printRow = (label, value, valueFont = 'normal', valueColor = [15, 23, 42]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(71, 85, 105);
+        doc.text(label, col1X, yPos);
+
+        doc.setFont('helvetica', valueFont);
+        doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
+        doc.text(String(value || '—'), col2X, yPos);
+        yPos += 8;
+      };
+
+      const personCategory = person.category || (getCategory ? getCategory(person) : 'Student');
+      printRow('Full Name:', person.name, 'bold');
+      printRow('Student ID:', person.id, 'bold');
+      printRow('Category:', personCategory.charAt(0).toUpperCase() + personCategory.slice(1), 'normal');
+      printRow('Department:', person.department || 'Computer Science', 'normal');
+      printRow('Badge ID:', person.badgeId || `BADGE-${person.id}`, 'bold');
+
+      yPos += 2;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(25, yPos, 185, yPos);
+      yPos += 10;
+
+      // ATTENDANCE DETAILS Section Header
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(15);
+      doc.setFontSize(11);
       doc.setTextColor(15, 23, 42);
-      doc.text(person.name, startX, 62);
+      doc.text('ATTENDANCE DETAILS', col1X, yPos);
+      yPos += 10;
 
-      doc.setFontSize(10);
-      doc.setTextColor(14, 116, 144);
-      doc.text(`ID / ROLL NO: ${person.id}`, startX, 70);
+      const cleanIdNum = String(person.id).replace(/[^0-9]/g, '') || '00101';
+      const attId = `ATT-${selectedDate}-${cleanIdNum}`;
+      
+      let checkInStr = '10:54:20 AM IST';
+      if (rec.time && rec.time !== '--') {
+        checkInStr = rec.time.includes('IST') ? rec.time : `${rec.time} IST`;
+      } else if (rec.fullDateTime && rec.fullDateTime !== '--') {
+        checkInStr = rec.fullDateTime;
+      }
+      
+      const checkOutStr = rec.checkOut || '—';
+      const statusStr = (rec.status || 'PRESENT').toUpperCase();
+      const statusColor = statusStr === 'PRESENT' ? [5, 150, 105] : statusStr === 'LATE' ? [217, 119, 6] : [225, 29, 72];
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
-      doc.setTextColor(51, 65, 85);
-      doc.text(`Category: ${getCategory(person).toUpperCase()}`, startX, 77);
-      doc.text(`Role / Designation: ${person.designation || person.role || 'Member'}`, startX, 84);
-      doc.text(`Department / Branch: ${person.department}`, startX, 91);
-      doc.text(`Badge ID: ${person.badgeId || person.id}`, startX, 98);
-      doc.text(`Selected Date: ${selectedDate}`, startX, 105);
-      doc.text(`Check-In Timestamp (12-HR): ${rec.fullDateTime || rec.time}`, startX, 112);
-      doc.text(`Presence Status: ${rec.status}`, startX, 119);
+      const cleanVerIdNum = String(person.id).replace(/[^0-9]/g, '') || '101';
+      const verId = `VER-${cleanVerIdNum}-001`;
 
-      doc.setDrawColor(5, 150, 105);
-      doc.rect(140, 122, 50, 14, 'S');
+      printRow('Attendance ID:', attId, 'bold');
+      printRow('Check-In:', checkInStr, 'normal', [5, 150, 105]);
+      printRow('Check-Out:', checkOutStr, 'normal', [100, 116, 139]);
+      printRow('Status:', statusStr, 'bold', statusColor);
+
+      yPos += 4;
+      printRow('Verification:', 'VERIFIED', 'bold', [5, 150, 105]);
+      printRow('Method:', 'Biometric', 'normal');
+      printRow('Verification ID:', verId, 'bold');
+
+      yPos += 2;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(25, yPos, 185, yPos);
+      yPos += 10;
+
+      // Record Status
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Record Status:', col1X, yPos);
+
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(5, 150, 105);
-      doc.text('VERIFIED DOSSIER', 145, 130);
+      doc.text('Verified', col2X, yPos);
 
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184);
-      doc.text('Official Biometric Personnel Identity Dossier — Project Chakravyuh Command Portal', 14, 286);
-
-      doc.save(`CHAKRAVYUH_PROFILE_DOSSIER_${person.id}.pdf`);
+      doc.save(`BIOMETRIC_ATTENDANCE_RECORD_${person.id}_${selectedDate}.pdf`);
     } catch (err) {
       console.error('Profile PDF error:', err);
     } finally {

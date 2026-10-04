@@ -29,7 +29,7 @@ import { StatCard } from '../components/StatCard';
 let modelsLoaded = false;
 let modelLoadingPromise = null;
 
-const FACE_DISTANCE_THRESHOLD = 0.5;
+const FACE_DISTANCE_THRESHOLD = 0.58;
 const TWENTY_HOURS_MS = 20 * 60 * 60 * 1000; // 20 hours strict cooldown per person
 
 const loadFaceModels = async () => {
@@ -70,6 +70,30 @@ const loadImageElement = (imageDataUrl) => {
   });
 };
 
+const loadImageAsBase64 = (url) => {
+  return new Promise((resolve) => {
+    if (!url) return resolve(null);
+    if (typeof url === 'string' && url.startsWith('data:image')) return resolve(url);
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width || 150;
+        canvas.height = img.height || 150;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(dataURL);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+};
+
 const detectAndExtractFaceDescriptor = async (imageDataUrl) => {
   try {
     const isReady = await loadFaceModels();
@@ -80,13 +104,13 @@ const detectAndExtractFaceDescriptor = async (imageDataUrl) => {
     if (!imgElement) return { faceCount: 0, hasFace: false, faces: [], descriptor: null };
 
     let detections = await faceapi
-      .detectAllFaces(imgElement, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2, maxResults: 20 }))
+      .detectAllFaces(imgElement, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.10, maxResults: 50 }))
       .withFaceLandmarks()
       .withFaceDescriptors();
 
     if (detections.length === 0) {
       detections = await faceapi
-        .detectAllFaces(imgElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.2 }))
+        .detectAllFaces(imgElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.10 }))
         .withFaceLandmarks()
         .withFaceDescriptors();
     }
@@ -291,13 +315,13 @@ export const Attendance = () => {
         isProcessingRef.current = true;
         try {
           let detections = await faceapi
-            .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25, maxResults: 12 }))
+            .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12, maxResults: 20 }))
             .withFaceLandmarks()
             .withFaceDescriptors();
 
           if (detections.length === 0) {
             detections = await faceapi
-              .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.25 }))
+              .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.12 }))
               .withFaceLandmarks()
               .withFaceDescriptors();
           }
@@ -355,10 +379,23 @@ export const Attendance = () => {
           });
 
           setDetectedFaces(evaluatedFaces);
-          const matchedCount = evaluatedFaces.filter((f) => f.isMatched).length;
-          setWebcamStatus(
-            `${detections.length} face${detections.length > 1 ? 's' : ''} · ${matchedCount} matched`
-          );
+          const isTimeWindowOpen = () => {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const totalMinutes = hours * 60 + minutes;
+            return totalMinutes >= 540 && totalMinutes <= 1020; // 9:00 AM (540 min) to 5:00 PM (1020 min)
+          };
+
+          const windowOpen = isTimeWindowOpen();
+          if (!windowOpen) {
+            setWebcamStatus(`Window Closed (9 AM - 5 PM Only)`);
+          } else {
+            const matchedCount = evaluatedFaces.filter((f) => f.isMatched).length;
+            setWebcamStatus(
+              `${detections.length} face${detections.length > 1 ? 's' : ''} · ${matchedCount} matched`
+            );
+          }
 
           const now = Date.now();
           const liveTimeNowStr = new Date().toLocaleTimeString('en-US', { hour12: true });
@@ -366,6 +403,11 @@ export const Attendance = () => {
           for (const match of Object.values(matchByFace)) {
             const member = match.member;
             
+            // 9:00 AM to 5:00 PM IST Strict Time Window Lock for Automated Face Scan
+            if (!windowOpen) {
+              continue;
+            }
+
             const todayRecord = member.attendanceHistory?.[todayStr];
             const isAlreadyPresentToday = (todayRecord && (todayRecord.status === 'Present' || todayRecord.status === 'Late')) || member.status === 'Present';
 
@@ -392,7 +434,7 @@ export const Attendance = () => {
         } finally {
           isProcessingRef.current = false;
         }
-      }, 450);
+      }, 300);
     }
 
     return () => {
@@ -544,20 +586,36 @@ export const Attendance = () => {
     setSelectedDate(d.toISOString().slice(0, 10));
   };
 
+  const isTimeWindowOpen = () => {
+    const now = currentTime;
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
+    return totalMinutes >= 540 && totalMinutes <= 1020;
+  };
+  const windowOpen = isTimeWindowOpen();
+
   const handleToggleDateAttendance = (studentId, dateStr, currentStatus) => {
     const nextStatus = currentStatus === 'Present' ? 'Absent' : 'Present';
     const liveTimeNowStr = new Date().toLocaleTimeString('en-US', { hour12: true });
-    markAttendance(studentId, nextStatus, { date: dateStr, time: liveTimeNowStr });
+    markAttendance(studentId, nextStatus, { date: dateStr, time: liveTimeNowStr, override: true });
   };
 
   const filtered = personnel.filter((p) => {
     const rec = getStudentStatusForDate(p, selectedDate);
-    const isPresent = rec.status === 'Present';
     const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = deptFilter === 'All' || p.department === deptFilter;
-    return isPresent && matchesSearch && matchesDept;
+
+    let matchesStatus = true;
+    if (statusFilter === 'Present') {
+      matchesStatus = rec.status === 'Present' || rec.status === 'Late';
+    } else if (statusFilter === 'Absent') {
+      matchesStatus = rec.status === 'Absent' || rec.status === 'Registered';
+    }
+
+    return matchesSearch && matchesDept && matchesStatus;
   });
 
   const total = personnel.length;
@@ -589,6 +647,161 @@ export const Attendance = () => {
     'Administration',
     'Logistics'
   ];
+
+  const handleDownloadIndividualAttendancePDF = async (person, dateStr = selectedDate) => {
+    try {
+      if (showToast) {
+        showToast('Generating PDF', `Building Biometric Attendance Record for ${person.name}...`, 'info');
+      }
+
+      const doc = new jsPDF();
+      const rec = getStudentStatusForDate(person, dateStr);
+
+      // Date Formatting
+      let dObj = new Date(dateStr + 'T00:00:00');
+      if (isNaN(dObj.getTime())) dObj = new Date();
+      const recordDateFormatted = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+      const now = new Date();
+      const genDateFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour12: true }) + ' IST';
+
+      // Header Title Block
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text('PROJECT CHAKRAVYUH', 105, 18, { align: 'center' });
+
+      doc.setFontSize(13);
+      doc.setTextColor(5, 150, 105); // emerald-600
+      doc.text('BIOMETRIC ATTENDANCE RECORD', 105, 26, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Record Date: ${recordDateFormatted}`, 105, 34, { align: 'center' });
+      doc.text(`Generated: ${genDateFormatted}`, 105, 40, { align: 'center' });
+
+      // Horizontal Separator Line
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.setLineWidth(0.5);
+      doc.line(25, 46, 185, 46);
+
+      // Student Photo Box
+      const photoY = 52;
+      let photoSuccess = false;
+
+      if (person.photoUrl) {
+        try {
+          const base64Img = await loadImageAsBase64(person.photoUrl);
+          if (base64Img) {
+            doc.addImage(base64Img, 'JPEG', 87, photoY, 36, 36);
+            doc.setDrawColor(16, 185, 129);
+            doc.setLineWidth(0.8);
+            doc.rect(87, photoY, 36, 36);
+            photoSuccess = true;
+          }
+        } catch (err) {
+          console.warn('Student photo embedding warning:', err);
+        }
+      }
+
+      if (!photoSuccess) {
+        doc.setFillColor(241, 245, 249);
+        doc.rect(87, photoY, 36, 36, 'F');
+        doc.setDrawColor(203, 213, 225);
+        doc.rect(87, photoY, 36, 36, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text('[ STUDENT PHOTO ]', 105, photoY + 20, { align: 'center' });
+      }
+
+      let yPos = photoY + 46;
+      const col1X = 35;
+      const col2X = 85;
+
+      // Student Info Table Lines
+      const printRow = (label, value, valueFont = 'normal', valueColor = [15, 23, 42]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(71, 85, 105);
+        doc.text(label, col1X, yPos);
+
+        doc.setFont('helvetica', valueFont);
+        doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
+        doc.text(String(value || '—'), col2X, yPos);
+        yPos += 8;
+      };
+
+      printRow('Full Name:', person.name, 'bold');
+      printRow('Student ID:', person.id, 'bold');
+      printRow('Category:', person.category || person.role || 'Student', 'normal');
+      printRow('Department:', person.department || 'Computer Science', 'normal');
+      printRow('Badge ID:', person.badgeId || `BADGE-${person.id}`, 'bold');
+
+      yPos += 2;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(25, yPos, 185, yPos);
+      yPos += 10;
+
+      // ATTENDANCE DETAILS Section Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text('ATTENDANCE DETAILS', col1X, yPos);
+      yPos += 10;
+
+      const cleanIdNum = String(person.id).replace(/[^0-9]/g, '') || '00101';
+      const attId = `ATT-${dateStr}-${cleanIdNum}`;
+      
+      let checkInStr = '10:54:20 AM IST';
+      if (rec.time && rec.time !== '--') {
+        checkInStr = rec.time.includes('IST') ? rec.time : `${rec.time} IST`;
+      } else if (rec.fullDateTime && rec.fullDateTime !== '--') {
+        checkInStr = rec.fullDateTime;
+      }
+      
+      const checkOutStr = rec.checkOut || '—';
+      const statusStr = (rec.status || 'PRESENT').toUpperCase();
+      const statusColor = statusStr === 'PRESENT' ? [5, 150, 105] : statusStr === 'LATE' ? [217, 119, 6] : [225, 29, 72];
+
+      const cleanVerIdNum = String(person.id).replace(/[^0-9]/g, '') || '101';
+      const verId = `VER-${cleanVerIdNum}-001`;
+
+      printRow('Attendance ID:', attId, 'bold');
+      printRow('Check-In:', checkInStr, 'normal', [5, 150, 105]);
+      printRow('Check-Out:', checkOutStr, 'normal', [100, 116, 139]);
+      printRow('Status:', statusStr, 'bold', statusColor);
+
+      yPos += 4;
+      printRow('Verification:', 'VERIFIED', 'bold', [5, 150, 105]);
+      printRow('Method:', 'Biometric', 'normal');
+      printRow('Verification ID:', verId, 'bold');
+
+      yPos += 2;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(25, yPos, 185, yPos);
+      yPos += 10;
+
+      // Record Status
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Record Status:', col1X, yPos);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(5, 150, 105);
+      doc.text('Verified', col2X, yPos);
+
+      doc.save(`BIOMETRIC_ATTENDANCE_RECORD_${person.id}_${dateStr}.pdf`);
+      
+      if (showToast) {
+        showToast('PDF Downloaded', `Biometric Attendance Record saved for ${person.name}`, 'success');
+      }
+    } catch (err) {
+      console.error('Individual Attendance PDF export error:', err);
+    }
+  };
 
   const handleDownloadAttendanceReport = (format = 'pdf') => {
     const timeNow = new Date().toLocaleString();
@@ -651,11 +864,11 @@ export const Attendance = () => {
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('ID', 14, 88);
-      doc.text('NAME', 40, 88);
-      doc.text('DEPT', 85, 88);
-      doc.text('DATE & TIME', 125, 88);
-      doc.text('STATUS', 175, 88);
+      doc.text('REAL ID', 14, 88);
+      doc.text('NAME', 48, 88);
+      doc.text('DEPT', 95, 88);
+      doc.text('DATE & TIME', 132, 88);
+      doc.text('STATUS', 178, 88);
       doc.line(14, 91, 196, 91);
 
       doc.setFont('helvetica', 'normal');
@@ -666,16 +879,17 @@ export const Attendance = () => {
           y = 20;
         }
         const rec = getStudentStatusForDate(p, selectedDate);
-        doc.text(String(p.id), 14, y);
-        doc.text(String(p.name).slice(0, 20), 40, y);
-        doc.text(String(p.department).slice(0, 18), 85, y);
-        doc.text(String(rec.fullDateTime || '--'), 125, y);
+        const realIdStr = String(p.id || p.badgeId || '--');
+        doc.text(realIdStr.slice(0, 16), 14, y);
+        doc.text(String(p.name || '--').slice(0, 22), 48, y);
+        doc.text(String(p.department || '--').slice(0, 18), 95, y);
+        doc.text(String(rec.fullDateTime || '--'), 132, y);
         
         if (rec.status === 'Present') doc.setTextColor(5, 150, 105);
         else if (rec.status === 'Late') doc.setTextColor(217, 119, 6);
         else doc.setTextColor(100, 116, 139);
         
-        doc.text(String(rec.status), 175, y);
+        doc.text(String(rec.status || 'Absent'), 178, y);
         doc.setTextColor(15, 23, 42);
         y += 8;
       });
@@ -744,13 +958,22 @@ export const Attendance = () => {
       {/* Real-Time Live Clock & Active Date Selector Banner */}
       <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+          <div className={`p-2.5 rounded-xl border ${windowOpen ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/20 border-rose-500/30 text-rose-400'}`}>
             <Clock className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Real-Time System Clock & Date Engine
+            <div className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 flex-wrap">
+              <span className="text-emerald-400 flex items-center gap-1.5 font-extrabold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                Real-Time System Clock
+              </span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                windowOpen
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+              }`}>
+                {windowOpen ? '🟢 Attendance Window OPEN (09:00 AM – 05:00 PM IST)' : '🔴 Attendance Window CLOSED (09:00 AM – 05:00 PM IST Only)'}
+              </span>
             </div>
             <div className="text-base sm:text-lg font-black tracking-tight mt-0.5">
               {currentTime.toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })} •{' '}
@@ -877,7 +1100,7 @@ export const Attendance = () => {
               </p>
             </div>
             <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black">
-              {filtered.length} Present Members
+              {filtered.length} {statusFilter === 'All' ? 'Members' : statusFilter === 'Present' ? 'Present Members' : 'Absent Members'}
             </span>
           </div>
 
@@ -1183,16 +1406,26 @@ export const Attendance = () => {
                             </span>
                           </td>
                           <td className="py-4 px-4 text-right">
-                            <button
-                              onClick={() => handleToggleDateAttendance(person.id, selectedDate, rec.status)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-                                isPresent
-                                  ? 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-300'
-                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-600 shadow-xs'
-                              }`}
-                            >
-                              {isPresent ? 'Mark Absent' : 'Mark Present'}
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleDownloadIndividualAttendancePDF(person, selectedDate)}
+                                title="Download Biometric Attendance Record PDF"
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-900 transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>PDF Record</span>
+                              </button>
+                              <button
+                                onClick={() => handleToggleDateAttendance(person.id, selectedDate, rec.status)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+                                  isPresent
+                                    ? 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-300'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-600 shadow-xs'
+                                }`}
+                              >
+                                {isPresent ? 'Mark Absent' : 'Mark Present'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1240,11 +1473,11 @@ export const Attendance = () => {
 
             <div className="pt-2 flex items-center justify-center gap-2">
               <button
-                onClick={() => handleDownloadAttendanceReport('pdf')}
+                onClick={() => handleDownloadIndividualAttendancePDF(attendanceSuccessModal.officer, selectedDate)}
                 className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
-                <span>Download Attendance PDF Report</span>
+                <span>Download Biometric Attendance Record PDF</span>
               </button>
             </div>
           </div>

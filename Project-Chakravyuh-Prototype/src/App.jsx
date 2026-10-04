@@ -55,6 +55,17 @@ const ModuleDashboardWrapper = () => {
   return <Dashboard />;
 };
 
+const MapsRouteWrapper = () => {
+  const { activeModule } = useApp();
+  const { moduleId } = useParams();
+  const currentMod = moduleId || activeModule;
+
+  if (currentMod === 'attendance') {
+    return <Navigate to={`/portal/${currentMod}/dashboard`} replace />;
+  }
+  return <Maps />;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -88,7 +99,7 @@ const AppRoutes = () => {
         <Route path="defence" element={<DefenceTracker />} />
         <Route path="cameras" element={<CameraNetwork />} />
         <Route path="alerts" element={<Alerts />} />
-        <Route path="maps" element={<Maps />} />
+        <Route path="maps" element={<MapsRouteWrapper />} />
         <Route path="reports" element={<Reports />} />
         <Route path="registered-data" element={<RegisteredData />} />
         <Route path="settings" element={<Settings />} />

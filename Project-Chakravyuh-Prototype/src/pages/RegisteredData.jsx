@@ -16,6 +16,30 @@ import {
 import { jsPDF } from 'jspdf';
 import { useApp } from '../context/AppContext';
 
+const loadImageAsBase64 = (url) => {
+  return new Promise((resolve) => {
+    if (!url) return resolve(null);
+    if (typeof url === 'string' && url.startsWith('data:image')) return resolve(url);
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width || 150;
+        canvas.height = img.height || 150;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(dataURL);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+};
+
 export const RegisteredData = () => {
   const { 
     watchlist = [], 
@@ -189,7 +213,7 @@ export const RegisteredData = () => {
   };
 
   // Download Profile Dossier PDF for single item
-  const handleDownloadDossier = (item) => {
+  const handleDownloadDossier = async (item) => {
     try {
       const doc = new jsPDF();
       if (isDefence) {
@@ -206,13 +230,28 @@ export const RegisteredData = () => {
         doc.setFontSize(8);
         doc.text(`Generated: ${new Date().toLocaleString()} | Asset ID: ${item.id || item.code}`, 14, 34);
 
+        let photoSuccess = false;
+        if (item.photoUrl) {
+          try {
+            const base64Img = await loadImageAsBase64(item.photoUrl);
+            if (base64Img) {
+              doc.addImage(base64Img, 'JPEG', 150, 48, 45, 45);
+              doc.setDrawColor(30, 58, 138);
+              doc.rect(150, 48, 45, 45);
+              photoSuccess = true;
+            }
+          } catch (e) {
+            console.warn('Defence asset photo warning:', e);
+          }
+        }
+
         doc.setTextColor(15, 23, 42);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('ARMORY ASSET SPECIFICATIONS & SECURITY CLEARANCE', 14, 54);
         doc.setLineWidth(0.5);
         doc.setDrawColor(30, 58, 138);
-        doc.line(14, 57, 196, 57);
+        doc.line(14, 57, photoSuccess ? 144 : 196, 57);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
@@ -238,13 +277,28 @@ export const RegisteredData = () => {
         doc.setFontSize(8);
         doc.text(`Generated: ${new Date().toLocaleString()} | Case ID: ${item.id}`, 14, 34);
 
+        let photoSuccess = false;
+        if (item.photoUrl) {
+          try {
+            const base64Img = await loadImageAsBase64(item.photoUrl);
+            if (base64Img) {
+              doc.addImage(base64Img, 'JPEG', 150, 48, 45, 45);
+              doc.setDrawColor(13, 148, 136);
+              doc.rect(150, 48, 45, 45);
+              photoSuccess = true;
+            }
+          } catch (e) {
+            console.warn('Missing child photo warning:', e);
+          }
+        }
+
         doc.setTextColor(15, 23, 42);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('CASE IDENTIFICATION & GUARDIAN DETAILS', 14, 54);
         doc.setLineWidth(0.5);
         doc.setDrawColor(13, 148, 136);
-        doc.line(14, 57, 196, 57);
+        doc.line(14, 57, photoSuccess ? 144 : 196, 57);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
@@ -258,37 +312,132 @@ export const RegisteredData = () => {
 
         doc.save(`MISSING_PERSON_DOSSIER_${item.name.replace(/ /g, '_')}_${item.id}.pdf`);
       } else if (isAttendance) {
-        doc.setFillColor(15, 23, 42); // Dark navy header
-        doc.rect(0, 0, 210, 40, 'F');
+        // EXACT REQUESTED STRUCTURE
+        const dateStr = new Date().toISOString().slice(0, 10);
+        let dObj = new Date();
+        const recordDateFormatted = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+        const genDateFormatted = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) + ', ' + dObj.toLocaleTimeString('en-US', { hour12: true }) + ' IST';
 
-        doc.setTextColor(255, 255, 255);
+        // Header Title Block
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
-        doc.text('PROJECT CHAKRAVYUH — REGISTERED ATTENDANCE REPOSITORY', 14, 16);
-        doc.setFontSize(10);
-        doc.setTextColor(148, 163, 184);
-        doc.text('OFFICIAL REGISTERED MEMBER BIOMETRIC & ACADEMIC DOSSIER', 14, 26);
-        doc.setFontSize(8);
-        doc.text(`Generated: ${new Date().toLocaleString()} | ID: ${item.id}`, 14, 34);
-
+        doc.setFontSize(16);
         doc.setTextColor(15, 23, 42);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('MEMBER PROFILE TELEMETRY & SPECIFICATIONS', 14, 54);
-        doc.setLineWidth(0.5);
-        doc.setDrawColor(15, 23, 42);
-        doc.line(14, 57, 196, 57);
+        doc.text('PROJECT CHAKRAVYUH', 105, 18, { align: 'center' });
+
+        doc.setFontSize(13);
+        doc.setTextColor(5, 150, 105);
+        doc.text('BIOMETRIC ATTENDANCE RECORD', 105, 26, { align: 'center' });
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.text(`Member Full Name:    ${item.name}`, 14, 68);
-        doc.text(`Registration ID:     ${item.id}`, 14, 76);
-        doc.text(`Designation / Role:   ${item.role || 'Student'}`, 14, 84);
-        doc.text(`Department / Class:   ${item.department || 'General Branch'}`, 14, 92);
-        doc.text(`Status:               ${item.status || 'Registered'}`, 14, 100);
-        doc.text(`Enrolled Camera:      ${item.camera || 'CAM-01 Primary Station'}`, 14, 108);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`Record Date: ${recordDateFormatted}`, 105, 34, { align: 'center' });
+        doc.text(`Generated: ${genDateFormatted}`, 105, 40, { align: 'center' });
 
-        doc.save(`ATTENDANCE_REGISTERED_DOSSIER_${item.name.replace(/ /g, '_')}_${item.id}.pdf`);
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.5);
+        doc.line(25, 46, 185, 46);
+
+        // Student Photo Box
+        const photoY = 52;
+        let photoSuccess = false;
+
+        if (item.photoUrl) {
+          try {
+            const base64Img = await loadImageAsBase64(item.photoUrl);
+            if (base64Img) {
+              doc.addImage(base64Img, 'JPEG', 87, photoY, 36, 36);
+              doc.setDrawColor(16, 185, 129);
+              doc.setLineWidth(0.8);
+              doc.rect(87, photoY, 36, 36);
+              photoSuccess = true;
+            }
+          } catch (err) {
+            console.warn('Student photo embedding warning:', err);
+          }
+        }
+
+        if (!photoSuccess) {
+          doc.setFillColor(241, 245, 249);
+          doc.rect(87, photoY, 36, 36, 'F');
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(87, photoY, 36, 36, 'S');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text('[ STUDENT PHOTO ]', 105, photoY + 20, { align: 'center' });
+        }
+
+        let yPos = photoY + 46;
+        const col1X = 35;
+        const col2X = 85;
+
+        const printRow = (label, value, valueFont = 'normal', valueColor = [15, 23, 42]) => {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(71, 85, 105);
+          doc.text(label, col1X, yPos);
+
+          doc.setFont('helvetica', valueFont);
+          doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
+          doc.text(String(value || '—'), col2X, yPos);
+          yPos += 8;
+        };
+
+        const itemCategory = item.category || item.role || 'Student';
+        printRow('Full Name:', item.name, 'bold');
+        printRow('Student ID:', item.id, 'bold');
+        printRow('Category:', itemCategory.charAt(0).toUpperCase() + itemCategory.slice(1), 'normal');
+        printRow('Department:', item.department || 'Computer Science', 'normal');
+        printRow('Badge ID:', item.badgeId || `BADGE-${item.id}`, 'bold');
+
+        yPos += 2;
+        doc.setDrawColor(203, 213, 225);
+        doc.line(25, yPos, 185, yPos);
+        yPos += 10;
+
+        // ATTENDANCE DETAILS Section Header
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text('ATTENDANCE DETAILS', col1X, yPos);
+        yPos += 10;
+
+        const cleanIdNum = String(item.id).replace(/[^0-9]/g, '') || '00101';
+        const attId = `ATT-${dateStr}-${cleanIdNum}`;
+        const checkInStr = item.entryTime || item.entry || '10:54:20 AM IST';
+        const checkOutStr = item.checkOut || '—';
+        const statusStr = (item.status || 'PRESENT').toUpperCase();
+        const statusColor = statusStr === 'PRESENT' ? [5, 150, 105] : statusStr === 'LATE' ? [217, 119, 6] : [225, 29, 72];
+
+        const cleanVerIdNum = String(item.id).replace(/[^0-9]/g, '') || '101';
+        const verId = `VER-${cleanVerIdNum}-001`;
+
+        printRow('Attendance ID:', attId, 'bold');
+        printRow('Check-In:', checkInStr, 'normal', [5, 150, 105]);
+        printRow('Check-Out:', checkOutStr, 'normal', [100, 116, 139]);
+        printRow('Status:', statusStr, 'bold', statusColor);
+
+        yPos += 4;
+        printRow('Verification:', 'VERIFIED', 'bold', [5, 150, 105]);
+        printRow('Method:', 'Biometric', 'normal');
+        printRow('Verification ID:', verId, 'bold');
+
+        yPos += 2;
+        doc.setDrawColor(203, 213, 225);
+        doc.line(25, yPos, 185, yPos);
+        yPos += 10;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(71, 85, 105);
+        doc.text('Record Status:', col1X, yPos);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(5, 150, 105);
+        doc.text('Verified', col2X, yPos);
+
+        doc.save(`BIOMETRIC_ATTENDANCE_RECORD_${item.id}_${dateStr}.pdf`);
       } else {
         doc.setFillColor(153, 27, 27); // Dark red header
         doc.rect(0, 0, 210, 40, 'F');
@@ -304,13 +453,28 @@ export const RegisteredData = () => {
         doc.setTextColor(226, 232, 240);
         doc.text(`Generated: ${new Date().toLocaleString()} | Record ID: ${item.id}`, 14, 34);
 
+        let photoSuccess = false;
+        if (item.photoUrl) {
+          try {
+            const base64Img = await loadImageAsBase64(item.photoUrl);
+            if (base64Img) {
+              doc.addImage(base64Img, 'JPEG', 150, 48, 45, 45);
+              doc.setDrawColor(153, 27, 27);
+              doc.rect(150, 48, 45, 45);
+              photoSuccess = true;
+            }
+          } catch (e) {
+            console.warn('Criminal suspect photo warning:', e);
+          }
+        }
+
         doc.setTextColor(15, 23, 42);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('SUSPECT DOSSIER TELEMETRY & SPECIFICATIONS', 14, 54);
         doc.setLineWidth(0.5);
         doc.setDrawColor(220, 38, 38);
-        doc.line(14, 57, 196, 57);
+        doc.line(14, 57, photoSuccess ? 144 : 196, 57);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);

@@ -100,7 +100,7 @@ export const Sidebar = () => {
     ...getModuleSpecificNavItems(currentModuleKey),
     { name: 'Camera Network', path: `${basePath}/cameras`, icon: Video },
     { name: 'Alerts & Triage', path: `${basePath}/alerts`, icon: Bell, badge: activeAlertsCount > 0 ? activeAlertsCount : null },
-    { name: 'Live Maps', path: `${basePath}/maps`, icon: Map },
+    ...(currentModuleKey !== 'attendance' ? [{ name: 'Live Maps', path: `${basePath}/maps`, icon: Map }] : []),
     { name: 'Reports & Logs', path: `${basePath}/reports`, icon: FileText },
     { name: 'Settings', path: `${basePath}/settings`, icon: Settings },
   ];
