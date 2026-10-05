@@ -1,0 +1,11 @@
+[
+  {
+    "admin_id": "ADM-TEST-DEFE-1789118733",
+    "username": "test_admin_defence",
+    "password_hash": "pbkdf2_sha256$100000$dc0d51e8636847df274941ec48d4d61f$6b4cc7873d79ce1c089e121f7f62cc025a6deb74cc31ec2d98f95a3cec16e08e",
+    "role": "admin",
+    "moduleId": "defence",
+    "created_at": "11 Sep 2026, 02:00:00 PM IST",
+    "updated_at": "11 Sep 2026, 02:00:00 PM IST"
+  }
+]

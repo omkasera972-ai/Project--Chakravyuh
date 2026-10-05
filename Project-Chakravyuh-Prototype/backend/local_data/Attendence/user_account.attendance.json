@@ -1,0 +1,31 @@
+[
+  {
+    "admin_id": "ADM-TEST-ATTE-1789118732",
+    "username": "test_admin_attendance",
+    "password_hash": "pbkdf2_sha256$100000$c24134b559774fb2a262125b4b3850d2$c7b33b4a608bc8e74a0324bf0e4d936e5009accbb2dca5794da6559afd844fb5",
+    "role": "admin",
+    "moduleId": "attendance",
+    "created_at": "11 Sep 2026, 02:00:00 PM IST",
+    "updated_at": "11 Sep 2026, 02:00:00 PM IST"
+  },
+  {
+    "admin_id": "ADM-ATTE-1790795774",
+    "username": "gourav_soner",
+    "password_hash": "pbkdf2_sha256$100000$1795aad18647f1bf4603bfa030159e3b$c0bb3221a3914d5e982e55631766050537c51b64c48e35ba16946ab27a707903",
+    "role": "admin",
+    "moduleId": "attendance",
+    "created_at": "01 Oct 2026, 12:46:14 AM IST",
+    "updated_at": "01 Oct 2026, 12:46:14 AM IST",
+    "_id": "loc_1790795775048"
+  },
+  {
+    "admin_id": "ADM-ATTE-1790832117",
+    "username": "gourav",
+    "password_hash": "pbkdf2_sha256$100000$694ddfb327487eab416cab2eee6f97ef$56537fd55eb4813869a1113aa8c0a68d09c09216c9bf3e4db6b6cf1aa20d4f11",
+    "role": "admin",
+    "moduleId": "attendance",
+    "created_at": "01 Oct 2026, 10:51:57 AM IST",
+    "updated_at": "01 Oct 2026, 10:51:57 AM IST",
+    "_id": "loc_1790832117702"
+  }
+]
